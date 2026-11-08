@@ -1,0 +1,13 @@
+- insert:
+    - id: pricing
+      name: 'dsh-pricing'
+      config:
+        bridgePort: 49237
+        refreshHours: 6
+        sourceUrl: 'https://api-docs.deepseek.com/quick_start/pricing.md'
+        officialProviders:
+          - deepseek-account
+        models:
+          - deepseek-flash
+          - deepseek-v4-flash
+          - deepseek-v4-pro

@@ -1,0 +1,36 @@
+{
+  "currency": "USD",
+  "unit": "per 1M tokens",
+  "models": {
+    "deepseek-flash": {
+      "label": "DeepSeek-V4.1-Flash",
+      "short": "V4.1",
+      "cacheHit": { "off": 0.003, "peak": 0.006 },
+      "input": { "off": 0.15, "peak": 0.3 },
+      "output": { "off": 0.6, "peak": 1.2 }
+    },
+    "deepseek-v4-pro": {
+      "label": "DeepSeek-V4-Pro",
+      "short": "Pro",
+      "cacheHit": { "off": 0.022, "peak": 0.044 },
+      "input": { "off": 0.66, "peak": 1.32 },
+      "output": { "off": 1.98, "peak": 3.96 }
+    }
+  },
+  "peak": {
+    "tz": "UTC",
+    "days": [1, 2, 3, 4, 5],
+    "windows": [
+      { "from": "01:00", "to": "04:00" },
+      { "from": "06:00", "to": "10:00" }
+    ],
+    "multiplier": 2,
+    "holidays": [],
+    "note": "Peak hours exclude Chinese public holidays; add ISO dates to \"holidays\" when they are known."
+  },
+  "source": {
+    "label": "DeepSeek API docs",
+    "url": "https://api-docs.deepseek.com/quick_start/pricing.md",
+    "fetchedAt": null
+  }
+}
