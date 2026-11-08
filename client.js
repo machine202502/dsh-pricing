@@ -248,6 +248,16 @@ window.__ModuleLoader__.load({
       .an-kpi-value { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
       .an-kpi-sub { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
       .an-chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .an-toolbar { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; }
+      .an-chart-wrap { position: relative; }
+      .an-hover { position: absolute; top: -26px; transform: translateX(-50%); z-index: 3; pointer-events: none;
+        padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-label-primary, #1b1b1f); color: var(--dsw-alias-bg-base, #fff);
+        font-size: 11px; white-space: nowrap; }
+      .an-bar-cell--on .an-bar { opacity: 1; }
+      .an-open { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 14px;
+        cursor: pointer; padding: 0; line-height: 18px; }
+      .an-open:hover { color: #2f6bff; }
+      .an-badge + .an-badge { margin-left: 4px; }
       .an-chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding: 6px 0 2px; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08)); }
       .an-chart { justify-content: flex-start; }
       .an-bar-cell { flex: 1 1 0; min-width: 4px; max-width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; cursor: pointer; }
@@ -256,7 +266,7 @@ window.__ModuleLoader__.load({
       .an-bar-cell:hover .an-bar { opacity: 1; }
       .an-bar-label { font-size: 9.5px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
       .an-table { margin-top: 12px; }
-      .an-table-head, .an-table-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 100px 80px 90px; align-items: center; gap: 10px; width: 100%; }
+      .an-table-head, .an-table-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px 88px 64px 44px 78px 26px; align-items: center; gap: 8px; width: 100%; }
       .an-table-head { padding: 6px 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08)); }
       .an-table-row { border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 8px 4px; cursor: pointer; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05)); }
       .an-table-row:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.04)); }
@@ -949,18 +959,20 @@ window.__ModuleLoader__.load({
     }
 
     //#region spending analytics
-    /** Page copy: kept beside the chip strings so the same language switch drives both. */
+    /** Page copy, kept beside the chip strings so one language switch drives both. */
     const AN = {
       ru: {
         title: 'Расходы',
-        all: 'Все сессии',
+        overview: 'Обзор',
+        allSessions: 'Все сессии',
         week: 'Неделя',
         month: 'Месяц',
         d30: '30 дней',
         day: 'День',
         custom: 'Свой диапазон',
-        from: 'С',
-        to: 'По',
+        refresh: 'Обновить',
+        reset: 'Сбросить вид',
+        updated: 'обновлено',
         zone: 'Часовой пояс',
         model: 'Модель',
         allModels: 'Все',
@@ -969,11 +981,11 @@ window.__ModuleLoader__.load({
         tokens: 'Токенов',
         sessions: 'Сессий',
         byDays: 'По дням',
-        byHours: 'Часы суток',
         hourly: 'По часам',
         session: 'Сессия',
-        date: 'Дата',
+        date: 'Период',
         cost: 'Стоимость',
+        activeDays: 'Дн.',
         back: '← Назад',
         export: 'CSV',
         more: 'Показать ещё',
@@ -989,20 +1001,20 @@ window.__ModuleLoader__.load({
         inheritedPrefix: 'Унаследовано из',
         openSession: 'Открыть сессию',
         pickDates: 'Выберите даты',
-        fork: 'форк',
-        inherited: 'Унаследовано из «{title}»',
-        inheritedNote: '{cost} · {requests} запросов · уже оплачено в родительской сессии, в суммы не входит',
+        allTime: 'всё время',
       },
       en: {
         title: 'Spending',
-        all: 'All sessions',
+        overview: 'Overview',
+        allSessions: 'All sessions',
         week: 'Week',
         month: 'Month',
         d30: '30 days',
         day: 'Day',
         custom: 'Custom range',
-        from: 'From',
-        to: 'To',
+        refresh: 'Refresh',
+        reset: 'Reset view',
+        updated: 'updated',
         zone: 'Time zone',
         model: 'Model',
         allModels: 'All',
@@ -1011,11 +1023,11 @@ window.__ModuleLoader__.load({
         tokens: 'Tokens',
         sessions: 'Sessions',
         byDays: 'By day',
-        byHours: 'Hour of day',
         hourly: 'By hour',
         session: 'Session',
-        date: 'Date',
+        date: 'Period',
         cost: 'Cost',
+        activeDays: 'Days',
         back: '← Back',
         export: 'CSV',
         more: 'Load more',
@@ -1031,20 +1043,20 @@ window.__ModuleLoader__.load({
         inheritedPrefix: 'Inherited from',
         openSession: 'Open session',
         pickDates: 'Pick dates',
-        fork: 'fork',
-        inherited: 'Inherited from «{title}»',
-        inheritedNote: '{cost} · {requests} requests · already paid in the parent session, excluded from totals',
+        allTime: 'all time',
       },
       zh: {
         title: '费用',
-        all: '全部会话',
+        overview: '概览',
+        allSessions: '全部会话',
         week: '周',
         month: '月',
         d30: '30 天',
         day: '日',
         custom: '自定义范围',
-        from: '从',
-        to: '到',
+        refresh: '刷新',
+        reset: '重置视图',
+        updated: '更新于',
         zone: '时区',
         model: '模型',
         allModels: '全部',
@@ -1053,11 +1065,11 @@ window.__ModuleLoader__.load({
         tokens: 'Token',
         sessions: '会话',
         byDays: '按天',
-        byHours: '小时分布',
         hourly: '按小时',
         session: '会话',
-        date: '日期',
+        date: '周期',
         cost: '费用',
+        activeDays: '天',
         back: '← 返回',
         export: 'CSV',
         more: '加载更多',
@@ -1073,9 +1085,7 @@ window.__ModuleLoader__.load({
         inheritedPrefix: '继承自',
         openSession: '打开会话',
         pickDates: '选择日期',
-        fork: '分叉',
-        inherited: '继承自「{title}」',
-        inheritedNote: '{cost} · {requests} 次请求 · 已在父会话付费，不计入合计',
+        allTime: '全部时间',
       },
     };
 
@@ -1100,30 +1110,13 @@ window.__ModuleLoader__.load({
       return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days)).toISOString().slice(0, 10);
     };
 
-    /** The date range a preset means in the chosen zone. */
-    const anRange = (preset, zone, now, custom) => {
-      const parts = tzParts(zone, now);
-      const month = String(parts.month).padStart(2, '0');
-      if (preset === 'day') return { from: parts.date, to: parts.date };
-      if (preset === 'week') {
-        const monday = anShift(parts.date, -(parts.weekday - 1));
-        return { from: monday, to: anShift(monday, 6) };
-      }
-      if (preset === 'month') {
-        const last = new Date(Date.UTC(parts.year, parts.month, 0)).getUTCDate();
-        return { from: parts.year + '-' + month + '-01', to: parts.year + '-' + month + '-' + String(last).padStart(2, '0') };
-      }
-      if (preset === 'd30') return { from: anShift(parts.date, -29), to: parts.date };
-      return custom;
-    };
-
     /** One call to the host analytics bridge. */
-    const anApi = async (path, params) => {
+    const anApi = async (path, params, method = 'GET') => {
       const url = new URL(base + path);
       for (const [key, value] of Object.entries(params ?? {})) {
         if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
       }
-      const response = await fetch(url, { cache: 'no-store' });
+      const response = await fetch(url, { method, cache: 'no-store' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.json();
     };
@@ -1135,7 +1128,8 @@ window.__ModuleLoader__.load({
       return '$' + amount.toFixed(4);
     };
     const anDay = (date) => {
-      const parts = String(date).split('-');
+      const parts = String(date ?? '').split('-');
+      if (parts.length !== 3) return '—';
       return parts[2] + '.' + parts[1];
     };
     const anCount = (value) => {
@@ -1144,9 +1138,8 @@ window.__ModuleLoader__.load({
       if (amount >= 1e3) return String(Number((amount / 1e3).toFixed(1))) + 'k';
       return String(Math.round(amount));
     };
-    const anIsoDay = (ms) => (typeof ms === 'number' ? new Date(ms).toISOString().slice(0, 10) : '—');
-    /** Session edge date in the chosen zone. */
     const anLocalDay = (ms, zone) => (typeof ms === 'number' ? anDay(tzParts(zone, ms).date) : '—');
+    const anClock = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
     /** Sidebar rail icon: three spending columns. */
     function SpendingIcon({ size }) {
@@ -1161,34 +1154,39 @@ window.__ModuleLoader__.load({
         strokeLinejoin: 'round',
         'aria-hidden': true,
       },
-        h('path', { d: 'M4 20V9M10 20V4M16 20v-6M22 20H2' }));
+      h('path', { d: 'M4 20V9M10 20V4M16 20v-6M22 20H2' }));
     }
 
+    /**
+     * Bars for days or hours with an immediate hover readout: the value appears
+     * next to the pointer without the browser tooltip delay.
+     */
     function SpendingCharts({ mode, data, onPickDay }) {
-      if (mode === 'hours') {
-        const max = Math.max(1, ...data.hours.map((item) => item.cost));
-        return h('div', { className: 'an-chart' }, data.hours.map((item) => h('div', {
-          key: item.hour,
-          className: 'an-bar-cell',
-          title: String(item.hour).padStart(2, '0') + ':00 · ' + anMoney(item.cost) + ' · ' + item.requests,
+      const [hover, setHover] = React.useState(null);
+      const items = mode === 'hours'
+        ? data.hours.map((item) => ({ key: 'h' + item.hour, label: String(item.hour).padStart(2, '0') + ':00', value: item.cost, requests: item.requests, hour: item.hour }))
+        : data.days.map((item) => ({ key: item.date, label: anDay(item.date), value: item.cost, requests: item.requests, date: item.date }));
+      const max = Math.max(1, ...items.map((item) => item.value));
+      return h('div', { className: 'an-chart-wrap', onMouseLeave: () => setHover(null) },
+        hover !== null
+          ? h('div', {
+              className: 'an-hover',
+              style: { left: ((hover.index + 0.5) / Math.max(1, items.length)) * 100 + '%' },
+            }, `${hover.label} · ${anMoney(hover.value)} · ${hover.requests}`)
+          : null,
+        h('div', { className: 'an-chart' }, items.map((item, index) => h('div', {
+          key: item.key,
+          className: 'an-bar-cell' + (hover !== null && hover.index === index ? ' an-bar-cell--on' : ''),
+          onMouseEnter: () => setHover({ index, label: item.label, value: item.value, requests: item.requests }),
+          onClick: () => { if (item.date !== undefined) onPickDay(item.date); },
         },
-          h('div', { className: 'an-bar-track' }, h('div', { className: 'an-bar', style: { height: (item.cost / max) * 100 + '%' } })),
-          h('span', { className: 'an-bar-label' }, item.hour % 3 === 0 ? String(item.hour) : ''),
-        )));
-      }
-      const max = Math.max(1, ...data.days.map((item) => item.cost));
-      return h('div', { className: 'an-chart' }, data.days.map((item) => h('div', {
-        key: item.date,
-        className: 'an-bar-cell',
-        title: anDay(item.date) + ' · ' + anMoney(item.cost) + ' · ' + item.requests,
-        onClick: () => onPickDay(item.date),
-      },
-        h('div', { className: 'an-bar-track' }, h('div', { className: 'an-bar', style: { height: (item.cost / max) * 100 + '%' } })),
-        h('span', { className: 'an-bar-label' }, anDay(item.date)),
-      )));
+          h('div', { className: 'an-bar-track' }, h('div', { className: 'an-bar', style: { height: (item.value / max) * 100 + '%' } })),
+          h('span', { className: 'an-bar-label' }, items.length <= 31 || index % Math.ceil(items.length / 20) === 0 ? item.label : ''),
+        ))),
+      );
     }
 
-    /** Monday-first calendar used to pick one range with two clicks. */
+    /** Monday-first calendar: two clicks pick the range. */
     function RangeCalendar({ from, to, onPick, locale }) {
       const initial = from !== '' ? from : to !== '' ? to : new Date().toISOString().slice(0, 10);
       const [cursor, setCursor] = React.useState(() => initial.slice(0, 7));
@@ -1203,7 +1201,6 @@ window.__ModuleLoader__.load({
         const next = new Date(Date.UTC(year, month - 1 + direction, 1));
         setCursor(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`);
       };
-      const pick = (date) => onPick(date);
       const inRange = (date) => from !== '' && to !== '' && date >= from && date <= to;
       return h('div', { className: 'an-cal' },
         h('div', { className: 'an-cal-head' },
@@ -1222,23 +1219,23 @@ window.__ModuleLoader__.load({
                   + (date === from ? ' an-cal-day--edge' : '')
                   + (date === to && to !== '' ? ' an-cal-day--edge' : '')
                   + (inRange(date) ? ' an-cal-day--in' : ''),
-                onClick: () => pick(date),
+                onClick: () => onPick(date),
               }, String(Number(date.slice(8)))))),
         ));
     }
 
-    function SpendingPage({ uiWorkspace }) {
+    function SpendingPage({ uiWorkspace, sessions }) {
       ensureStyles();
       const [language, setLanguage] = React.useState(uiLanguage);
       const strings = { ...STRINGS[language], ...AN[language] };
       const locale = LOCALES[language] ?? 'en-US';
+      const [view, setView] = React.useState('overview');
       const [preset, setPreset] = React.useState('week');
       const [shift, setShift] = React.useState(0);
       const [custom, setCustom] = React.useState({ from: '', to: '' });
       const [calendar, setCalendar] = React.useState(false);
       const [zone, setZone] = React.useState(AN_ZONE);
       const [model, setModel] = React.useState('');
-      const [mode, setMode] = React.useState('days');
       const [focus, setFocus] = React.useState(null);
       const [detail, setDetail] = React.useState(null);
       const [data, setData] = React.useState(null);
@@ -1246,7 +1243,23 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState(true);
       const [error, setError] = React.useState(null);
       const [now, setNow] = React.useState(Date.now());
+      const [reload, setReload] = React.useState(0);
       const [history, setHistory] = React.useState([]);
+
+      // Live session list: only these ids may be opened, everything else is text.
+      const listStore = sessions?.list;
+      const listSnapshot = typeof listStore?.getSnapshot === 'function'
+        ? React.useSyncExternalStore(
+            (notify) => {
+              const dispose = listStore.subscribe?.(notify);
+              return typeof dispose === 'function' ? dispose : () => {};
+            },
+            () => listStore.getSnapshot(),
+            () => null,
+          )
+        : null;
+      const liveIds = React.useMemo(() => new Set(Object.keys(listSnapshot?.byId ?? {})), [listSnapshot]);
+      const isLive = (id) => typeof id === 'string' && liveIds.has(id);
 
       React.useEffect(() => {
         let alive = true;
@@ -1288,23 +1301,25 @@ window.__ModuleLoader__.load({
         return custom;
       };
 
-      const range = focus !== null ? null : rangeFor();
+      const allMode = view === 'all';
+      const range = focus !== null || allMode ? null : rangeFor();
       const singleDay = range !== null && range.from === range.to;
-      const canShift = focus === null && (preset === 'day' || preset === 'week' || preset === 'month');
+      const canShift = focus === null && !allMode && (preset === 'day' || preset === 'week' || preset === 'month');
+      const hoursMode = singleDay;
 
-      const remember = () => setHistory((previous) => [...previous, { preset, shift, custom, focus }].slice(-20));
+      const remember = () => setHistory((previous) => [...previous, { view, preset, shift, custom, focus }].slice(-20));
       const goBack = () => {
         setHistory((previous) => {
-          const next = previous.slice(0, -1);
           const last = previous[previous.length - 1];
           if (last !== undefined) {
+            setView(last.view);
             setPreset(last.preset);
             setShift(last.shift);
             setCustom(last.custom);
             setFocus(last.focus);
             setDetail(null);
           }
-          return next;
+          return previous.slice(0, -1);
         });
       };
 
@@ -1322,7 +1337,10 @@ window.__ModuleLoader__.load({
               setError(body.detail === null ? strings.notFound : null);
               return;
             }
-            const body = await anApi('/analytics', { from: range.from, to: range.to, tz: zone, model, limit: 50 });
+            const query = allMode
+              ? { scope: 'all', tz: zone, model, limit: 100 }
+              : { from: range.from, to: range.to, tz: zone, model, limit: 50 };
+            const body = await anApi('/analytics', query);
             if (!alive) return;
             setStatus(body.status ?? null);
             if (body.ready === false) {
@@ -1346,18 +1364,14 @@ window.__ModuleLoader__.load({
           alive = false;
           if (timer !== null) clearTimeout(timer);
         };
-      }, [preset, shift, custom.from, custom.to, zone, model, focus, now]);
+      }, [view, preset, shift, custom.from, custom.to, zone, model, focus, now, reload]);
 
       const loadMore = async () => {
         if (data === null || data.sessions.nextCursor === null) return;
-        const body = await anApi('/analytics', {
-          from: range.from,
-          to: range.to,
-          tz: zone,
-          model,
-          cursor: data.sessions.nextCursor,
-          limit: 50,
-        });
+        const query = allMode
+          ? { scope: 'all', tz: zone, model, cursor: data.sessions.nextCursor, limit: 100 }
+          : { from: range.from, to: range.to, tz: zone, model, cursor: data.sessions.nextCursor, limit: 50 };
+        const body = await anApi('/analytics', query);
         setData({
           ...data,
           sessions: {
@@ -1366,6 +1380,46 @@ window.__ModuleLoader__.load({
             nextCursor: body.sessions.nextCursor,
           },
         });
+      };
+
+      const refresh = async () => {
+        setBusy(true);
+        try {
+          await anApi('/analytics/build', {}, 'POST');
+          for (let attempt = 0; attempt < 120; attempt += 1) {
+            const current = await anApi('/analytics/status');
+            setStatus(current);
+            if (current.building !== true) break;
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+          setReload((value) => value + 1);
+        } catch (failure) {
+          setBusy(false);
+          setError(String(failure?.message ?? failure));
+        }
+      };
+
+      const resetView = () => {
+        setView('overview');
+        setPreset('week');
+        setShift(0);
+        setCustom({ from: '', to: '' });
+        setCalendar(false);
+        setZone(AN_ZONE);
+        setModel('');
+        setFocus(null);
+        setDetail(null);
+        setHistory([]);
+        setReload((value) => value + 1);
+      };
+
+      const openSession = (id) => {
+        if (!isLive(id)) return;
+        try {
+          uiWorkspace?.openSession?.(id);
+        } catch {
+          /* navigation unavailable */
+        }
       };
 
       const exportCsv = () => {
@@ -1378,57 +1432,62 @@ window.__ModuleLoader__.load({
         const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'spending-' + (range === null ? 'session' : range.from + '_' + range.to) + '.csv';
+        link.download = 'spending-' + (range === null ? 'all' : range.from + '_' + range.to) + '.csv';
         link.click();
         setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       };
 
-      const openSession = (id) => {
-        try {
-          uiWorkspace?.openSession?.(id);
-        } catch {
-          /* navigation unavailable */
-        }
-      };
-
       const detailMode = focus !== null;
       const shown = detailMode ? detail : data;
-      const hoursMode = mode === 'hours' || singleDay;
       const presetList = [['week', strings.week], ['month', strings.month], ['d30', strings.d30], ['day', strings.day], ['custom', strings.custom]];
       const rangeText = range === null || range.from === '' ? '' : singleDay || range.to === ''
         ? anDay(range.from)
         : anDay(range.from) + '–' + anDay(range.to);
       const crumb = detailMode
         ? [strings.title, detail === null ? strings.loading : detail.title]
-        : [strings.title, strings[preset] + (rangeText === '' ? '' : ' · ' + rangeText)];
+        : allMode
+          ? [strings.title, strings.allSessions]
+          : [strings.title, strings[preset] + (rangeText === '' ? '' : ' · ' + rangeText)];
+      const updatedAt = data === null || data.builtAt === null || data.builtAt === undefined ? null : data.builtAt;
 
       return h('div', { className: 'an-page' },
         h('div', { className: 'an-content' },
           h('div', { className: 'an-crumbs' },
             history.length > 0 ? h('button', { type: 'button', className: 'an-back', onClick: goBack }, strings.back) : null,
             crumb.map((part, index) => h('span', { key: part + index, className: index === crumb.length - 1 ? 'an-crumb an-crumb--last' : 'an-crumb' }, part)),
+            h('span', { className: 'an-toolbar' },
+              h('button', { type: 'button', className: 'an-tab', onClick: refresh, disabled: busy }, strings.refresh),
+              updatedAt !== null ? h('span', { className: 'an-dim' }, strings.updated + ' ' + anClock(updatedAt)) : null,
+              h('button', { type: 'button', className: 'an-tab', onClick: resetView }, strings.reset),
+            ),
           ),
           h('div', { className: 'an-controls' },
             h('div', { className: 'an-presets' },
-              presetList.map(([value, label]) => h('button', {
-                key: value,
-                type: 'button',
-                className: 'an-tab' + (preset === value && focus === null ? ' an-tab--on' : ''),
-                onClick: () => {
-                  remember();
-                  setPreset(value);
-                  setShift(0);
-                  setFocus(null);
-                  setDetail(null);
-                  setCalendar(false);
-                },
-              }, label))),
+              h('button', { type: 'button', className: 'an-tab' + (!allMode ? ' an-tab--on' : ''), onClick: () => { remember(); setView('overview'); setFocus(null); } }, strings.overview),
+              h('button', { type: 'button', className: 'an-tab' + (allMode ? ' an-tab--on' : ''), onClick: () => { remember(); setView('all'); setFocus(null); } }, strings.allSessions),
+            ),
+            !allMode
+              ? h('div', { className: 'an-presets' },
+                  presetList.map(([value, label]) => h('button', {
+                    key: value,
+                    type: 'button',
+                    className: 'an-tab' + (preset === value && !detailMode ? ' an-tab--on' : ''),
+                    onClick: () => {
+                      remember();
+                      setPreset(value);
+                      setShift(0);
+                      setFocus(null);
+                      setDetail(null);
+                      setCalendar(false);
+                    },
+                  }, label)))
+              : null,
             canShift
               ? h('div', { className: 'an-arrows' },
                   h('button', { type: 'button', className: 'an-arrow', onClick: () => { remember(); setShift(shift - 1); } }, '‹'),
                   h('button', { type: 'button', className: 'an-arrow', onClick: () => { remember(); setShift(shift + 1); } }, '›'))
               : null,
-            preset === 'custom'
+            preset === 'custom' && !allMode
               ? h('button', {
                   type: 'button',
                   className: 'an-range' + (calendar ? ' an-range--open' : ''),
@@ -1446,17 +1505,12 @@ window.__ModuleLoader__.load({
                   h('option', { value: 'deepseek-v4-pro' }, 'V4 Pro'))),
             ),
           ),
-          preset === 'custom' && calendar
-            ? h(RangeCalendar, {
-                from: custom.from,
-                to: custom.to,
-                locale,
-                onPick: (date) => setCustom((previous) => {
-                  if (previous.from === '' || previous.to !== '') return { from: date, to: '' };
-                  if (date < previous.from) return { from: date, to: previous.from };
-                  return { from: previous.from, to: date };
-                }),
-              })
+          preset === 'custom' && !allMode && calendar
+            ? h(RangeCalendar, { from: custom.from, to: custom.to, locale, onPick: (date) => setCustom((previous) => {
+                if (previous.from === '' || previous.to !== '') return { from: date, to: '' };
+                if (date < previous.from) return { from: date, to: previous.from };
+                return { from: previous.from, to: date };
+              }) })
             : null,
           status !== null && status.building
             ? h('div', { className: 'an-note' }, strings.building + ' ' + status.done + ' / ' + status.total)
@@ -1468,7 +1522,8 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'an-kpi' },
                   h('div', { className: 'an-card' },
                     h('span', { className: 'an-kpi-label' }, strings.total),
-                    h('span', { className: 'an-kpi-value' }, anMoney(shown.totals.cost))),
+                    h('span', { className: 'an-kpi-value' }, anMoney(shown.totals.cost)),
+                    allMode ? h('span', { className: 'an-kpi-sub' }, strings.allTime) : null),
                   h('div', { className: 'an-card' },
                     h('span', { className: 'an-kpi-label' }, strings.requests),
                     h('span', { className: 'an-kpi-value' }, String(shown.totals.requests))),
@@ -1485,17 +1540,17 @@ window.__ModuleLoader__.load({
                       detail.inherited !== null && detail.inherited.requests > 0
                         ? h('span', null,
                             strings.inheritedPrefix + ' ',
-                            detail.parentExists === true
+                            isLive(detail.parent)
                               ? h('button', { type: 'button', className: 'dp-link', onClick: () => openSession(detail.parent) }, detail.parentTitle ?? detail.parent)
                               : h('span', null, detail.parentTitle ?? detail.parent),
                             ' (' + anMoney(detail.inherited.cost) + ')')
                         : null,
-                      h('button', { type: 'button', className: 'an-tab', onClick: () => openSession(detail.key) }, strings.openSession))
+                      isLive(detail.key)
+                        ? h('button', { type: 'button', className: 'an-tab', onClick: () => openSession(detail.key) }, strings.openSession)
+                        : null)
                   : null,
                 h('div', { className: 'an-chart-head' },
-                  h('div', { className: 'an-seg' },
-                    h('button', { type: 'button', className: 'an-tab' + (!hoursMode ? ' an-tab--on' : ''), onClick: () => setMode('days') }, strings.byDays),
-                    h('button', { type: 'button', className: 'an-tab' + (hoursMode ? ' an-tab--on' : ''), onClick: () => setMode('hours') }, singleDay ? strings.hourly : strings.byHours)),
+                  h('span', { className: 'an-dim' }, hoursMode ? strings.hourly : strings.byDays),
                   h('button', { type: 'button', className: 'an-tab', onClick: exportCsv }, strings.export),
                 ),
                 shown.totals.requests === 0
@@ -1506,6 +1561,7 @@ window.__ModuleLoader__.load({
                         data: shown,
                         onPickDay: (date) => {
                           remember();
+                          setView('overview');
                           setFocus(null);
                           setCustom({ from: date, to: date });
                           setPreset('custom');
@@ -1524,12 +1580,16 @@ window.__ModuleLoader__.load({
                               h('span', null, strings.date),
                               h('span', { className: 'an-right' }, strings.cost),
                               h('span', { className: 'an-right' }, strings.requests),
-                              h('span', { className: 'an-right' }, strings.tokens)),
-                            data.sessions.rows.map((row) => h('button', {
+                              h('span', { className: 'an-right' }, strings.activeDays),
+                              h('span', { className: 'an-right' }, strings.tokens),
+                              h('span', null, '')),
+                            data.sessions.rows.map((row) => h('div', {
                               key: row.key,
-                              type: 'button',
                               className: 'an-table-row',
+                              role: 'button',
+                              tabIndex: 0,
                               onClick: () => { remember(); setFocus(row.key); setDetail(null); },
+                              onKeyDown: (event) => { if (event.key === 'Enter') { remember(); setFocus(row.key); setDetail(null); } },
                             },
                               h('span', { className: 'an-name' }, row.title || row.id,
                                 row.subagent === true
@@ -1540,9 +1600,19 @@ window.__ModuleLoader__.load({
                               h('span', { className: 'an-dim' }, anLocalDay(row.firstAt, zone) + '–' + anLocalDay(row.lastAt, zone)),
                               h('span', { className: 'an-right an-strong' }, anMoney(row.cost)),
                               h('span', { className: 'an-right an-dim' }, String(row.requests)),
-                              h('span', { className: 'an-right an-dim' }, anCount(row.uncached + row.cacheRead + row.output)))),
+                              h('span', { className: 'an-right an-dim' }, String(row.activeDays ?? '—')),
+                              h('span', { className: 'an-right an-dim' }, anCount(row.uncached + row.cacheRead + row.output)),
+                              isLive(row.id)
+                                ? h('button', {
+                                    type: 'button',
+                                    className: 'an-open',
+                                    title: strings.openSession,
+                                    onClick: (event) => { event.stopPropagation(); openSession(row.id); },
+                                  }, '↗')
+                                : h('span', null)),
+                            ),
                             data.sessions.nextCursor !== null
-                              ? h('div', { className: 'an-more' }, h('button', { type: 'button', className: 'an-tab', onClick: loadMore }, strings.more))
+                              ? h('div', { className: 'an-more' }, h('button', { type: 'button', className: 'an-tab', onClick: loadMore, disabled: busy }, strings.more))
                               : null),
                     ),
               )
@@ -1589,7 +1659,7 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('main', () => ctx.slots.register({
             name: 'main',
             key: 'spending',
-            inject: () => ({ uiWorkspace: ctx.uiWorkspace }),
+            inject: () => ({ uiWorkspace: ctx.uiWorkspace, sessions: ctx.sessions }),
           }, (props) => h(SpendingPage, props)));
         } catch (error) {
           console.warn('dsh-pricing: spending section registration failed', error);

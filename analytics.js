@@ -70,13 +70,13 @@ function listLogs(root) {
  */
 export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
   const indexFile = join(stateDir, 'analytics.json');
-  const state = { building: false, done: 0, total: 0, error: null, loaded: false };
+const state = { building: false, done: 0, total: 0, error: null, loaded: false, builtAt: null };
   let sessions = new Map();
 
   const save = () => {
     try {
       mkdirSync(dirname(indexFile), { recursive: true });
-      const payload = { version: INDEX_VERSION, sessions: Object.fromEntries(sessions) };
+const payload = { version: INDEX_VERSION, builtAt: Date.now(), sessions: Object.fromEntries(sessions) };
       const temporary = `${indexFile}.tmp`;
       writeFileSync(temporary, JSON.stringify(payload), 'utf8');
       renameSync(temporary, indexFile);
@@ -90,6 +90,7 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     state.loaded = true;
     const stored = readJson(indexFile);
     if (stored?.version !== INDEX_VERSION || typeof stored.sessions !== 'object') return;
+    state.builtAt = Number(stored.builtAt ?? 0) || null;
     sessions = new Map(Object.entries(stored.sessions));
   };
 
@@ -152,6 +153,7 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         changed = true;
       }
       if (changed) save();
+      if (state.builtAt === null) state.builtAt = Date.now();
       log(`analytics index: ${sessions.size} session logs`);
     } catch (error) {
       state.error = String(error?.message ?? error);
@@ -175,12 +177,13 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
    * @param query - local dates, zone, optional session/model filter, sort,
    *   cursor and limit for the session page.
    */
-  function query({ from, to, tz, session, model, sort = 'cost', cursor = 0, limit = 50 }) {
+  function query({ from, to, tz, session, model, sort = 'cost', cursor = 0, limit = 50, scope }) {
     load();
     const zone = tz || 'UTC';
     const modelIndex = model === undefined || model === null || model === '' ? -1 : MODEL_CODES.indexOf(model);
-    const start = from ? dayStart(from, zone) : Number.NEGATIVE_INFINITY;
-    const end = to ? dayStart(to, zone) + 86_400_000 : Number.POSITIVE_INFINITY;
+    const everything = scope === 'all';
+    const start = !everything && from ? dayStart(from, zone) : Number.NEGATIVE_INFINITY;
+    const end = !everything && to ? dayStart(to, zone) + 86_400_000 : Number.POSITIVE_INFINITY;
 
     const totals = emptyTotal();
     const days = new Map();
@@ -190,14 +193,17 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     for (const [key, item] of sessions) {
       if (session !== undefined && session !== null && session !== '' && key !== session) continue;
       const row = emptyTotal();
+      const activeDays = new Set();
       let seen = false;
       for (const entry of item.entries) {
+        const dayOf = zonedParts(entry.at, zone).date;
+        activeDays.add(dayOf);
         if (modelIndex >= 0 && entry.model !== modelIndex) continue;
         if (entry.at < start || entry.at >= end) continue;
         seen = true;
         addUsage(row, entry, entry.period);
         addUsage(totals, entry, entry.period);
-        const parts = zonedParts(entry.at, zone);
+        const parts = { date: dayOf, hour: zonedParts(entry.at, zone).hour };
         const day = days.get(parts.date) ?? emptyTotal();
         addUsage(day, entry, entry.period);
         days.set(parts.date, day);
@@ -216,6 +222,7 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         parentExists: item.parent === null || item.parent === undefined ? false : [...sessions.values()].some((candidate) => candidate.id === item.parent),
         parentTitle: item.parent === null || item.parent === undefined ? null : titleOf(item.parent),
         inherited: item.inherited ?? null,
+        activeDays: activeDays.size,
         ...row,
       });
     }
@@ -230,6 +237,7 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         .sort((left, right) => left.date.localeCompare(right.date)),
       hours: hours.map((value, hour) => ({ hour, ...value })),
       sessions: { rows: page, total: rows.length, nextCursor: cursor + page.length < rows.length ? cursor + page.length : null },
+      builtAt: state.builtAt,
       peak: getPrices().peak,
     };
   }
@@ -277,7 +285,7 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
   return {
     status() {
       load();
-      return { building: state.building, done: state.done, total: state.total, sessions: sessions.size, error: state.error };
+      return { building: state.building, done: state.done, total: state.total, sessions: sessions.size, error: state.error, builtAt: state.builtAt };
     },
     ensureBuilt() {
       if (!state.building && !state.loaded) build();
