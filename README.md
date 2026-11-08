@@ -1,102 +1,170 @@
 # dsh-pricing
 
-Пиковые часы DeepSeek и актуальные цены токенов — прямо в шапке сессии.
+DeepSeek peak hours, live token prices and the real spend of every chat — right in
+the DSH session header, plus a full spending analytics page.
 
-Плашка отвечает на один вопрос: **сейчас дорого или нет и до когда**. Показывается
-только для официального провайдера DeepSeek; для сторонних и локальных моделей
-слота нет.
+The chip answers one question: **is it expensive right now, and until when**. It
+is shown only for the official DeepSeek provider; other providers and local models
+get no chip at all.
 
 ```
-Plagin Creator   ⚙ Standard mode    [ ● V4.1 $0.15 · Pro $0.66 ]   📁 ⋯
-во время пика:
-                                     [ ● ПИК · V4.1 $0.3 · Pro $1.32 · до 09:00 ]
+Plugin Creator   ⚙ Standard mode        [ ● сессия $1.60 ]      📁 ⋯
+during peak hours:
+                                        [ ● ПИК · сессия $1.60 · до 09:00 ]
 ```
 
-## Что показывает
+## What you get
 
-- **Пилюля в шапке** — только стоимость текущей сессии: `● сессия $1.60`.
-  В пик добавляется `ПИК` и время окончания, вся плашка красная. Цены моделей,
-  вход/выход и прочие детали — во всплывающей карточке по наведению.
-  (V4.1 Flash) и `deepseek-v4-pro`, и **фактическая стоимость текущей сессии**
-  (`сессия $13.84`). В пик — красная, с временем окончания.
-- **Карточка по наведению/клику** — расписание пика в поясе провайдера и в вашем
-  местном, сколько осталось, полная таблица на 4 строки: для каждой модели
-  отдельно цены вне пика и в пик (вход, кэш-хит, выход), стоимость сессии с
-  разбивкой по токенам (вход, кэш, выход) и кнопка «Обновить сейчас».
-- **Настройки** — язык интерфейса: русский, английский, китайский или «Авто»
-  (язык приложения). По умолчанию — русский.
+- **Header chip** — the actual spend of the current session only (`● сессия $1.60`).
+  During peak hours it turns red and adds `ПИК` plus the end time; the chip label
+  stays in the plugin language.
+- **Hover card** — the provider's peak schedule in its own zone and in yours, the
+  time left, a four-row price table (peak and off-peak for both models: input,
+  cache hit, output), the session spend with a token breakdown, an inherited-fork
+  note and a «Refresh now» action.
+- **Settings** — interface language: Russian, English, Chinese or «Auto» (the
+  application language). Stored in `%LOCALAPPDATA%\dsh-pricing\settings.json`.
+- **Spending page** — a sidebar section with periods, charts, session tables,
+  per-session details and CSV export.
 
-## Языки
+## Languages
 
-Строки плагина лежат в `client.js` (`STRINGS.ru|en|zh`), названия в списке плагинов —
-в `locale/*.json`. Язык меняется в **Plugins → dsh-pricing** и сохраняется в
-`%LOCALAPPDATA%\dsh-pricing\settings.json`.
+Strings live in `client.js` (`STRINGS.ru|en|zh`), plugin-list titles in
+`locale/*.json`. The language is switched in **Plugins → dsh-pricing** and written
+to the same settings file. Precedence: the stored setting (`ru`, `en`, `zh`) →
+`auto`, which follows `document.documentElement.lang` / `navigator.language` →
+the default `ru`.
 
-## Откуда данные
+## Where prices come from
 
-`https://api-docs.deepseek.com/quick_start/pricing.md` — страница документации в
-markdown, её можно разбирать без HTML-парсера.
+`https://api-docs.deepseek.com/quick_start/pricing.md` — the docs page is available
+as markdown, so it is parsed without an HTML parser.
 
-Хост-часть:
+The host half:
 
-- раз в `refreshHours` (по умолчанию 6 ч) забирает страницу, парсит таблицу
-  `PRICING` и фразу `Peak hours are …`;
-- **валидирует**: все три метрики у обеих моделей, `peak ≥ off > 0`. Неполная
-  таблица не применяется — остаётся прошлый снимок;
-- кэширует удачный снимок в `%LOCALAPPDATA%\dsh-pricing\prices.json`;
-- отдаёт данные по loopback `127.0.0.1:49237` (`/state`, `/refresh`, `/settings`,
-  `/health`);
-- пишет диагностику в `%LOCALAPPDATA%\dsh-pricing\plugin.log`.
+- fetches the page every `refreshHours` (6 by default) and parses the `PRICING`
+  table and the `Peak hours are …` sentence;
+- **validates** the result: all three metrics for both models, `peak ≥ off > 0`.
+  An incomplete table is rejected and the previous snapshot stays;
+- caches the last good snapshot in `%LOCALAPPDATA%\dsh-pricing\prices.json`;
+- serves it over loopback `127.0.0.1:49237` (`/state`, `/refresh`, `/settings`,
+  `/analytics`, `/session-cost`, `/health`);
+- writes diagnostics to `%LOCALAPPDATA%\dsh-pricing\plugin.log`.
 
-В комплекте — `data/pricing.json`, эталонный снимок: плагин работает без сети и при
-первом запуске.
+`data/pricing.json` ships as a reference snapshot, so the plugin works offline and
+on the very first start.
 
-## Стоимость сессии
+## Session spend
 
-Провайдер не отдаёт деньги — он отдаёт токены. Поэтому стоимость считается
-**по фактическим токенам из журнала сессии**: хост-часть читает durable-лог
-(`~/.dsh/sessions/<проект>/<сессия>/session.v*.jsonl.zstd`), берёт каждую
-запись `assistant/message` с `usage` (вход без кэша, кэш-чтения, кэш-записи,
-выход) и считает цену по тарифу **на момент этого запроса** — пиковому или
-внепиковому. То есть давние пиковые ходы остаются посчитанными по пиковой цене,
-даже если сейчас вне пика.
+The provider returns tokens, not money. Spend is therefore computed **from the
+actual tokens in the durable session log**: every `assistant/message` and
+`compaction/summary` record with `usage` (uncached input, cache reads, cache
+writes, output) is priced with the tariff **in force at that record's own
+timestamp** — peak or off-peak. Old peak turns stay priced at the peak rate even
+when the current period is off-peak.
 
-Результат кэшируется по пути/размеру/mtime лога, поэтому повторный запрос не
-перечитывает файл. Пилюля показывает стоимость своей сессии (`сессия $1.60`), карточка —
-сумму и разбивку по токенам.
+Parsed logs are cached by path/size/mtime, so polling never re-reads an unchanged
+file. The chip shows the session cost; the card shows the same number with a token
+breakdown.
 
-## Сброс точки отсчёта
+## Reset point
 
-В карточке два среза: **«Сессия»** — весь расход чата, и **«С последнего сброса»** —
-только то, что набежало после нажатия «Сбросить».
+The card has two slices: **Session** (the whole chat) and **Since the last reset**
+(only what accumulated after pressing «Reset»).
 
-- Кнопка «Сбросить» запоминает момент (и номер запроса, на котором это случилось)
-  для текущей сессии; с этого времени второй счётчик считает заново.
-- Общий расход не стирается: «Сессия» остаётся полной.
-- В пилюле всегда показывается значение сброса: пока сброса не было, это весь
-  расход чата, после сброса — только новое.
-- «Снять сброс» убирает отметку, и счётчики снова совпадают.
-- Сброс свой у каждого чата, хранится на диске (`%LOCALAPPDATA%\dsh-pricing\resets.json`)
-  и переживает перезапуск.
+- «Reset» stores the moment (and the request number it happened at) for the current
+  session; the second counter starts from there.
+- The total is never erased: «Session» stays complete.
+- The chip always shows the reset slice: before any reset it equals the whole chat.
+- «Clear reset» removes the marker, both slices align again.
+- Resets are per chat, stored in `%LOCALAPPDATA%\dsh-pricing\resets.json` and
+  survive restarts.
 
-## Часовые пояса
+## Time zones
 
-Окна хранятся в поясе публикации (`peak.tz`, сейчас `UTC`), сравниваются по
-абсолютным моментам через `Intl`, а показываются в вашем местном поясе. У DeepSeek
-пик: `01:00–04:00` и `06:00–10:00 UTC`, Пн–Пт, кроме китайских праздников; для
-UTC+5 это `06:00–09:00` и `11:00–15:00`.
+Peak windows are stored in the publishing zone (`peak.tz`, currently `UTC`),
+compared as absolute instants through `Intl`, and displayed in your local zone.
+DeepSeek peaks: `01:00–04:00` and `06:00–10:00 UTC`, Monday to Friday, excluding
+Chinese public holidays; for UTC+5 that is `06:00–09:00` and `11:00–15:00`.
 
-Праздники — список ISO-дат в `peak.holidays` (пуст по умолчанию: машинного
-календаря у провайдера нет, даты добавляются вручную).
+Holidays are a list of ISO dates in `peak.holidays` (empty by default: the provider
+publishes no machine-readable calendar, dates are added by hand).
 
-## Установка
+## Spending page
+
+The **Spending** section in the sidebar is a dedicated page:
+
+- **Overview** — period presets (calendar week default, month, 30 days, a single
+  day, a custom range), KPI cards, a day chart and the session list for that
+  period.
+- **All sessions** — the full list for all time, sorted by cost, with lifetime,
+  cost, requests, active days and tokens; loaded 100 at a time.
+- **Custom range** — one Monday-first calendar: first click sets the start, second
+  sets the end; clicking another date starts a new range.
+- **Time zone selector** — affects grouping only: each request is priced by its own
+  instant, so the same date in different zones yields different request sets.
+- **Charts** — days for any period; for a single selected day the chart switches to
+  hours (0–23). Hovering a bar shows its date, sum and request count immediately.
+- **Toolbar** — «Refresh» rebuilds the index, the last build time is shown next to
+  it, «Reset view» returns to the default view.
+- **Navigation** — breadcrumbs with a back stack (up to 20 steps) and ‹ › arrows for
+  day/week/month.
+- **Session detail** — the whole lifetime of one session, its days, hours and an
+  «Open session» button.
+- **CSV** — export of the selected period or session.
+
+The host keeps an index in `%LOCALAPPDATA%\dsh-pricing\analytics.json`: per log the
+size, mtime and a compact record list. Only changed logs are reparsed; the build
+runs in the background, and a five-minute pass keeps the index close to the live
+logs.
+
+## Session types
+
+- **fork** — a user fork: a copy of the parent history (the parent id comes from the
+  log header).
+- **subagent** — a session created by a sub-agent (`delegationDepth > 0`).
+
+They are different things and never mixed in the UI.
+
+## Forked sessions
+
+A fork copies the parent history, and its log contains the same `usage` records
+with the original timestamps. Those requests were already paid in the parent, so
+the analytics never bills them twice:
+
+- the inherited event count comes from the projection cache
+  (`identity.inheritedEventCount`), the parent id from the log header
+  (`parentSession`);
+- records whose `seq` is at or below that count are aggregated as `inherited`;
+- a fork's cost and tokens cover only its own requests, so charts stay honest;
+- the session card shows «Inherited from … ($X)»; the name is a link only when the
+  parent still exists and is not archived.
+
+If the parent log was deleted, its part is simply absent — only what exists on disk
+is counted.
+
+## Links and archives
+
+Every session row may carry an open arrow (↗) and the card has an «Open session»
+button, but only for sessions present in the live DSH sidebar and not archived.
+Sessions that are archived keep their row with an «archive» badge and no link at
+all; clicking does nothing, so a removed or archived session can never open a blank
+chat.
+
+## One shared ledger
+
+Log parsing, per-request tariff pricing and the inherited-prefix split live in one
+module, `ledger.js`. Both the header chip (`/session-cost`) and the spending page
+(`/analytics`) read through it, so the numbers agree everywhere.
+
+## Install
 
 ```bash
 npx --yes github:machine202502/dsh-pricing
-# или вручную: npm i github:machine202502/dsh-pricing в профиле DSH
+# or in a DSH profile: npm i github:machine202502/dsh-pricing
 ```
 
-## Конфиг (`cordis.patch.yml`)
+## Config (`cordis.patch.yml`)
 
 ```yaml
 - id: pricing
@@ -109,96 +177,11 @@ npx --yes github:machine202502/dsh-pricing
     models: [deepseek-flash, deepseek-v4-flash, deepseek-v4-pro]
 ```
 
-## Общий расчёт
+## Limitations
 
-Разбор журнала, тарифы по времени запроса и отделение унаследованного префикса
-форка живут в одном модуле — `ledger.js`. Через него считают и плашка в шапке
-(`/session-cost`), и страница «Расходы» (`/analytics`), поэтому цифры совпадают:
-собственные расходы форка, унаследованное и точки сброса трактуются одинаково.
-
-## Аналитика расходов
-
-В сайдбаре появляется секция **«Расходы»** — отдельная страница со статистикой.
-
-- **Периоды**: календарная неделя (Пн–Вс, по умолчанию), месяц, 30 дней, день и
-  произвольный диапазон дат.
-- **Часовой пояс**: выбирается в шапке страницы, по умолчанию — зона клиента.
-  Влияет только на группировку по дням и часам: стоимость запроса считается по
-  его абсолютному времени, поэтому одна и та же дата в разных зонах даёт разные
-  наборы запросов.
-- **График**: «По дням» для любого периода и «Часы суток» — профиль активности по
-  24 часам (для одного дня показывается почасовой разрез).
-- **Список сессий**: постранично по 50, догружается кнопкой, сортировка по
-  стоимости или дате; клик по строке открывает режим сессии — весь её срок
-  жизни, разбивку по дням и часам.
-- **CSV**: выгрузка дней выбранного периода или сессии.
-- Фильтр по модели (Flash/Pro) применяется ко всем виджетам.
-
-Хост-часть держит индекс `%LOCALAPPDATA%\dsh-pricing\analytics.json`: по каждому
-журналу — размер, mtime и компактный список записей. Изменился журнал (по
-mtime и размеру) — пересчитывается только он; сборка идёт в фоне после запуска и
-не блокирует интерфейс.
-
-Сабагенты — отдельные сессии в таблице, к родителю не приплюсовываются.
-
-## Форки сессий
-
-Форк копирует историю родителя, и в его журнале лежат те же записи `usage` с
-исходными временами. Эти запросы уже оплачены в родительской сессии, поэтому
-аналитика их **не суммирует повторно**:
-
-- количество унаследованных событий берётся из кэша проекций
-  (`identity.inheritedEventCount`), а родитель — из заголовка журнала
-  (`parentSession`);
-- записи с `seq` не больше этого числа считаются унаследованными и попадают в
-  отдельный агрегат `inherited`;
-- стоимость и токены форка считаются только по его собственным запросам, поэтому
-  диаграммы и итоги не раздуваются;
-- в списке у форка стоит метка «форк», а в карточке — строка «Унаследовано из
-  «…»: $X · N запросов · уже оплачено в родительской сессии, в суммы не входит».
-
-Если журнал родителя удалён, его стоимость в аналитику не попадёт — считаем
-только то, что реально лежит на диске.
-
-## Навигация и типы сессий
-
-- **Хлебные крошки** в шапке страницы показывают текущий срез («Расходы · Неделя ·
-  09.11–15.11» или «Расходы · сессия»), рядом кнопка «← Назад» — она возвращает к
-  предыдущему выбору (неделя → день → неделя → сессия и т.д., до 20 шагов).
-- **Стрелки ‹ ›** листают период на один шаг: день, неделя (Пн–Вс), месяц.
-  Для «30 дней» и произвольного диапазона стрелки скрыты.
-- **Свой диапазон** — один календарь: первый клик задаёт начало, второй конец;
-  клик по другой дате в уже выбранном диапазоне начинает новый.
-- **Метки сессий**: «форк» — пользовательский форк (копия истории родителя),
-  «сабагент» — сессия, созданная суб-агентом (`delegationDepth > 0`). Это разные
-  вещи и они не смешиваются.
-- **Переход**: сессия открывается из карточки кнопкой «Открыть сессию», а в строке
-  «Унаследовано из …» имя родителя — кликабельная ссылка. Если родительской сессии
-  больше нет на диске, ссылка остаётся текстом и ничего не делает.
-
-## Режимы страницы
-
-- **Обзор** — период (неделя по умолчанию, месяц, 30 дней, день, свой диапазон),
-  KPI, график по дням и список сессий за этот период.
-- **Все сессии** — весь список за всё время, отсортированный по стоимости: имя,
-  период жизни, стоимость, запросы, активные дни, токены. Грузится страницами по
-  100, кнопка «Показать ещё».
-- **Часы** — когда выбран один день, график автоматически почасовой (0–23).
-  Отдельного «профиля часов суток» больше нет.
-- **Наведение на столбик** сразу показывает дату, сумму и число запросов, без
-  задержки системной подсказки, и подсвечивает столбик.
-- **Тулбар**: «Обновить» пересобирает индекс, рядом время последней сборки,
-  «Сбросить вид» возвращает обзор, текущую неделю, системную зону и «все модели».
-- **Архивные сессии** помечаются значком «архив» и в таблице, и в строке
-  «Унаследовано из …»: имя остаётся текстом, перехода нет.
-- **Переходы**: у каждой живой сессии есть стрелка ↗, открывающая чат, а в
-  карточке — кнопка «Открыть сессию». Если сессии нет в живом списке DSH
-  (удалена или архив), имя остаётся текстом и клик ничего не делает; то же
-  правило для ссылки «Унаследовано из …».
-
-## Ограничения
-
-
-- Стоимость сессии не считается — только текущий тариф.
-- Если провайдер сменит разметку, снимок не применится и это попадёт в лог;
-  плагин продолжит показывать последние проверенные цены.
+- Search and Fetch API calls are billed per request ($0.75 per 1,000), not per
+  token, so they are not part of the token spend.
+- Deleted session logs cannot be priced; only logs on disk are counted.
+- If the provider changes the page markup, the snapshot is not applied and the
+  plugin keeps the last verified prices (the failure goes to the log).
+- Chinese public holidays are manual: add ISO dates to `peak.holidays` when needed.
