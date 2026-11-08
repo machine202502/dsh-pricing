@@ -13,6 +13,14 @@ during peak hours:
                                         [ ● ПИК · сессия $1.60 · до 09:00 ]
 ```
 
+## Screenshots
+
+![Session chip](docs/img/chip.png)
+
+![Spending page, all sessions](docs/img/spending-all.jpg)
+
+![Session detail with the inherited fork](docs/img/spending-session.jpg)
+
 ## What you get
 
 - **Header chip** — the actual spend of the current session only (`● сессия $1.60`).
