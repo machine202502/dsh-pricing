@@ -68,7 +68,7 @@ export function zonedParts(ms, zone) {
 
 /** Offset of a zone from UTC at one instant. */
 export function zoneOffset(zone, ms) {
-  const parts = zonedParts(zone, ms);
+  const parts = zonedParts(ms, zone);
   return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute) - Math.floor(ms / 60_000) * 60_000;
 }
 
