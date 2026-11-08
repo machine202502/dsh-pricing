@@ -23,7 +23,7 @@ import {
   zonedParts,
 } from './ledger.js';
 
-const INDEX_VERSION = 3;
+const INDEX_VERSION = 4;
 
 /** List every session log under the DSH home. */
 function listLogs(root) {
@@ -133,14 +133,15 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
           log(`analytics parse failed for ${item.key}: ${String(error?.message ?? error)}`);
           continue;
         }
-        const { entries, inherited, parent } = parsed;
+        const { entries, inherited, parent, header } = parsed;
         sessions.set(item.key, {
           file: item.file,
           size: stat.size,
           mtime: stat.mtimeMs,
           title,
           project: item.project,
-          id: item.id,
+          id: header?.id ?? item.id,
+          depth: Number(header?.depth ?? 0),
           firstAt: entries.length > 0 ? entries[0].at : null,
           lastAt: entries.length > 0 ? entries[entries.length - 1].at : null,
           inheritedLimit,
@@ -211,6 +212,8 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         firstAt: item.firstAt,
         lastAt: item.lastAt,
         parent: item.parent ?? null,
+        subagent: Number(item.depth ?? 0) > 0,
+        parentExists: item.parent === null || item.parent === undefined ? false : [...sessions.values()].some((candidate) => candidate.id === item.parent),
         parentTitle: item.parent === null || item.parent === undefined ? null : titleOf(item.parent),
         inherited: item.inherited ?? null,
         ...row,
@@ -260,6 +263,8 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
       firstAt: item.firstAt,
       lastAt: item.lastAt,
       parent: item.parent ?? null,
+        parentExists: item.parent === null || item.parent === undefined ? false : [...sessions.values()].some((candidate) => candidate.id === item.parent),
+        subagent: Number(item.depth ?? 0) > 0,
       parentTitle: item.parent === null || item.parent === undefined ? null : titleOf(item.parent),
       inherited: item.inherited ?? null,
       totals,

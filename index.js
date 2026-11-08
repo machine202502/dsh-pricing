@@ -240,6 +240,7 @@ function sessionCost(sessionId, modelId, data, resetAt) {
     inherited: ledger.inherited,
     parent: ledger.parent,
     parentTitle: ledger.parent === null ? null : (metaOf(sessionMeta(), ledger.parent)?.title ?? null),
+    parentExists: ledger.parent === null ? false : findSessionLog(join(DSH_HOME, 'sessions'), ledger.parent) !== null,
     title: ledger.title,
   };
 }
@@ -349,6 +350,7 @@ export function apply(ctx, config = {}) {
         inherited: totals?.inherited ?? null,
         parent: totals?.parent ?? null,
         parentTitle: totals?.parentTitle ?? null,
+        parentExists: totals?.parentExists === true,
         title: totals?.title ?? null,
         reset,
       };

@@ -218,6 +218,7 @@ export function parseSessionLog(file, { prices, inheritedLimit = 0, fallbackMode
   const inherited = emptyTotal();
   let modelIndex = Math.max(0, MODEL_CODES.indexOf(fallbackModel));
   let parent = null;
+  const header = { id: null, depth: 0 };
   for (const line of readLog(file).split('\n')) {
     if (line.length === 0) continue;
     let record;
@@ -228,6 +229,8 @@ export function parseSessionLog(file, { prices, inheritedLimit = 0, fallbackMode
     }
     if (record.type === 'session') {
       if (typeof record.parentSession === 'string') parent = record.parentSession;
+      if (typeof record.id === 'string') header.id = record.id;
+      header.depth = Number(record.delegationDepth ?? 0);
       continue;
     }
     if (record.type === 'request/header') {
@@ -252,7 +255,7 @@ export function parseSessionLog(file, { prices, inheritedLimit = 0, fallbackMode
     }
     entries.push({ at, period, model: modelIndex, ...priced });
   }
-  return { entries, inherited, parent };
+  return { entries, inherited, parent, header };
 }
 
 /** Sum entries inside a time window, optionally filtered by model. */

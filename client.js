@@ -64,6 +64,7 @@ window.__ModuleLoader__.load({
         nowTag: 'сейчас',
         spendNote: 'по фактическим токенам провайдера',
         inheritedLine: 'Унаследовано из «{title}»: {cost} · не входит в сумму',
+        inheritedPrefix: 'Унаследовано из',
         tokensInput: 'вход',
         tokensCache: 'кэш',
         tokensOutput: 'выход',
@@ -108,6 +109,7 @@ window.__ModuleLoader__.load({
         nowTag: 'now',
         spendNote: 'from provider-reported tokens',
         inheritedLine: 'Inherited from «{title}»: {cost} · excluded from totals',
+        inheritedPrefix: 'Inherited from',
         tokensInput: 'input',
         tokensCache: 'cache',
         tokensOutput: 'output',
@@ -152,6 +154,7 @@ window.__ModuleLoader__.load({
         nowTag: '当前',
         spendNote: '按提供方实际 token 计费',
         inheritedLine: '继承自「{title}」：{cost} · 不计入合计',
+        inheritedPrefix: '继承自',
         tokensInput: '输入',
         tokensCache: '缓存',
         tokensOutput: '输出',
@@ -206,6 +209,8 @@ window.__ModuleLoader__.load({
       .dp-now-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10.5px; line-height: 14px;
         font-weight: 500; color: #2f6bff; background: rgba(47,107,255,.1); }
       .dp-tip-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+      .dp-link { border: 0; background: none; padding: 0; font: inherit; color: #2f6bff; cursor: pointer; text-decoration: underline; }
+      .dp-link:disabled { color: var(--dsw-alias-label-tertiary); text-decoration: none; cursor: default; }
       .dp-refresh { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11.5px;
         cursor: pointer; padding: 2px 0; text-decoration: underline; white-space: nowrap; }
       .dp-refresh:hover { color: var(--dsw-alias-label-primary); }
@@ -261,6 +266,33 @@ window.__ModuleLoader__.load({
       .an-dim { color: var(--dsw-alias-label-tertiary); }
       .an-more { display: flex; justify-content: center; padding: 12px 0; }
       .an-days { margin-top: 12px; }
+      .an-crumbs { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; color: var(--dsw-alias-label-tertiary); font-size: 12px; flex-wrap: wrap; }
+      .an-crumb { color: var(--dsw-alias-label-tertiary); }
+      .an-crumb--last { color: var(--dsw-alias-label-primary); }
+      .an-back { border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14)); background: transparent; color: var(--dsw-alias-label-secondary);
+        font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 8px; cursor: pointer; }
+      .an-back:hover { color: var(--dsw-alias-label-primary); }
+      .an-arrows { display: inline-flex; gap: 4px; }
+      .an-arrow { width: 26px; height: 28px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14)); background: transparent;
+        border-radius: 8px; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; }
+      .an-arrow:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
+      .an-range { height: 28px; padding: 0 12px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14)); border-radius: 8px;
+        background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+      .an-range--open { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
+      .an-cal { width: 300px; margin: 0 0 14px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12)); border-radius: 12px; padding: 10px 12px; }
+      .an-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .an-cal-month { font-size: 12.5px; font-weight: 500; text-transform: capitalize; }
+      .an-cal-nav { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 16px; cursor: pointer; padding: 0 6px; }
+      .an-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+      .an-cal-week { font-size: 10px; color: var(--dsw-alias-label-tertiary); text-align: center; padding: 2px 0; }
+      .an-cal-day { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px;
+        height: 26px; border-radius: 6px; cursor: pointer; }
+      .an-cal-day:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
+      .an-cal-day--in { background: rgba(47,107,255,.1); color: var(--dsw-alias-label-primary); }
+      .an-cal-day--edge { background: #2f6bff; color: #fff; }
+      .an-badge { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; line-height: 14px;
+        color: var(--dsw-alias-label-tertiary); background: rgba(0,0,0,.06); vertical-align: 1px; }
+      .an-forkline { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 12px; color: var(--dsw-alias-label-tertiary); flex-wrap: wrap; }
       .an-fork { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; line-height: 14px;
         color: var(--dsw-alias-label-tertiary); background: rgba(0,0,0,.06); vertical-align: 1px; }
       .an-sub--fork { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
@@ -506,7 +538,7 @@ window.__ModuleLoader__.load({
       return body;
     };
 
-    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, reset, resetting, when, onReset, onClearReset }) {
+    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, reset, resetting, when, onReset, onClearReset, onOpenSession }) {
       const strings = STRINGS[language];
       const spendBlock = (label, spend) => (spend === null || spend.turns === 0
         ? h('div', { className: 'dp-tip-row' },
@@ -591,7 +623,15 @@ window.__ModuleLoader__.load({
         spendBlock(strings.sinceReset, spendSince),
         inherited !== null && inherited !== undefined && inherited.requests > 0
           ? h('div', { className: 'dp-tip-row', style: { marginTop: '4px' } },
-              h('span', { className: 'dp-tip-dim' }, fill(strings.inheritedLine, { title: parentTitle ?? '—', cost: moneySpend(inherited.cost) })),
+              h('span', { className: 'dp-tip-dim' }, strings.inheritedPrefix + ' '),
+              inherited.parentExists === true
+                ? h('button', {
+                    type: 'button',
+                    className: 'dp-link',
+                    onClick: (event) => { event.stopPropagation(); onOpenSession(inherited.parent); },
+                  }, parentTitle ?? inherited.parent)
+                : h('span', null, parentTitle ?? inherited.parent),
+              h('span', { className: 'dp-tip-dim' }, ' (' + moneySpend(inherited.cost) + ')'),
             )
           : null,
         reset !== null
@@ -635,7 +675,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function PricingChip({ sessionId, sessions }) {
+    function PricingChip({ sessionId, sessions, uiWorkspace }) {
       ensureStyles();
       const [data, setData] = React.useState(null);
       const [now, setNow] = React.useState(() => Date.now());
@@ -810,6 +850,7 @@ window.__ModuleLoader__.load({
               spendSince,
               inherited: cost === null ? null : (cost.inherited ?? null),
               parentTitle: cost === null ? null : (cost.parentTitle ?? null),
+              onOpenSession: (id) => { try { uiWorkspace?.openSession?.(id); } catch { /* navigation unavailable */ } },
               reset,
               resetting,
               when,
@@ -933,7 +974,7 @@ window.__ModuleLoader__.load({
         session: 'Сессия',
         date: 'Дата',
         cost: 'Стоимость',
-        back: '← Все сессии',
+        back: '← Назад',
         export: 'CSV',
         more: 'Показать ещё',
         empty: 'За выбранный период расходов нет',
@@ -943,6 +984,11 @@ window.__ModuleLoader__.load({
         cache: 'кэш',
         output: 'выход',
         notFound: 'Сессия не найдена',
+        fork: 'форк',
+        subagent: 'сабагент',
+        inheritedPrefix: 'Унаследовано из',
+        openSession: 'Открыть сессию',
+        pickDates: 'Выберите даты',
         fork: 'форк',
         inherited: 'Унаследовано из «{title}»',
         inheritedNote: '{cost} · {requests} запросов · уже оплачено в родительской сессии, в суммы не входит',
@@ -970,7 +1016,7 @@ window.__ModuleLoader__.load({
         session: 'Session',
         date: 'Date',
         cost: 'Cost',
-        back: '← All sessions',
+        back: '← Back',
         export: 'CSV',
         more: 'Load more',
         empty: 'No spending in this period',
@@ -980,6 +1026,11 @@ window.__ModuleLoader__.load({
         cache: 'cache',
         output: 'output',
         notFound: 'Session not found',
+        fork: 'fork',
+        subagent: 'subagent',
+        inheritedPrefix: 'Inherited from',
+        openSession: 'Open session',
+        pickDates: 'Pick dates',
         fork: 'fork',
         inherited: 'Inherited from «{title}»',
         inheritedNote: '{cost} · {requests} requests · already paid in the parent session, excluded from totals',
@@ -1007,7 +1058,7 @@ window.__ModuleLoader__.load({
         session: '会话',
         date: '日期',
         cost: '费用',
-        back: '← 全部会话',
+        back: '← 返回',
         export: 'CSV',
         more: '加载更多',
         empty: '该时间段没有费用',
@@ -1017,6 +1068,11 @@ window.__ModuleLoader__.load({
         cache: '缓存',
         output: '输出',
         notFound: '会话未找到',
+        fork: '分叉',
+        subagent: '子代理',
+        inheritedPrefix: '继承自',
+        openSession: '打开会话',
+        pickDates: '选择日期',
         fork: '分叉',
         inherited: '继承自「{title}」',
         inheritedNote: '{cost} · {requests} 次请求 · 已在父会话付费，不计入合计',
@@ -1132,13 +1188,54 @@ window.__ModuleLoader__.load({
       )));
     }
 
-    function SpendingPage() {
+    /** Monday-first calendar used to pick one range with two clicks. */
+    function RangeCalendar({ from, to, onPick, locale }) {
+      const initial = from !== '' ? from : to !== '' ? to : new Date().toISOString().slice(0, 10);
+      const [cursor, setCursor] = React.useState(() => initial.slice(0, 7));
+      const [year, month] = cursor.split('-').map(Number);
+      const first = new Date(Date.UTC(year, month - 1, 1));
+      const startOffset = (first.getUTCDay() + 6) % 7;
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      const cells = [];
+      for (let index = 0; index < startOffset; index += 1) cells.push(null);
+      for (let day = 1; day <= daysInMonth; day += 1) cells.push(`${cursor}-${String(day).padStart(2, '0')}`);
+      const shiftMonth = (direction) => {
+        const next = new Date(Date.UTC(year, month - 1 + direction, 1));
+        setCursor(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`);
+      };
+      const pick = (date) => onPick(date);
+      const inRange = (date) => from !== '' && to !== '' && date >= from && date <= to;
+      return h('div', { className: 'an-cal' },
+        h('div', { className: 'an-cal-head' },
+          h('button', { type: 'button', className: 'an-cal-nav', onClick: () => shiftMonth(-1) }, '‹'),
+          h('span', { className: 'an-cal-month' }, new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(locale, { month: 'long', year: 'numeric' })),
+          h('button', { type: 'button', className: 'an-cal-nav', onClick: () => shiftMonth(1) }, '›')),
+        h('div', { className: 'an-cal-grid' },
+          [0, 1, 2, 3, 4, 5, 6].map((offset) => h('span', { key: 'w' + offset, className: 'an-cal-week' },
+            new Date(Date.UTC(2024, 0, 1 + offset)).toLocaleDateString(locale, { weekday: 'short' }))),
+          cells.map((date, index) => (date === null
+            ? h('span', { key: 'e' + index })
+            : h('button', {
+                key: date,
+                type: 'button',
+                className: 'an-cal-day'
+                  + (date === from ? ' an-cal-day--edge' : '')
+                  + (date === to && to !== '' ? ' an-cal-day--edge' : '')
+                  + (inRange(date) ? ' an-cal-day--in' : ''),
+                onClick: () => pick(date),
+              }, String(Number(date.slice(8)))))),
+        ));
+    }
+
+    function SpendingPage({ uiWorkspace }) {
       ensureStyles();
       const [language, setLanguage] = React.useState(uiLanguage);
       const strings = { ...STRINGS[language], ...AN[language] };
       const locale = LOCALES[language] ?? 'en-US';
       const [preset, setPreset] = React.useState('week');
+      const [shift, setShift] = React.useState(0);
       const [custom, setCustom] = React.useState({ from: '', to: '' });
+      const [calendar, setCalendar] = React.useState(false);
       const [zone, setZone] = React.useState(AN_ZONE);
       const [model, setModel] = React.useState('');
       const [mode, setMode] = React.useState('days');
@@ -1149,12 +1246,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState(true);
       const [error, setError] = React.useState(null);
       const [now, setNow] = React.useState(Date.now());
-
-      React.useEffect(() => {
-        const id = setInterval(() => setNow(Date.now()), 60_000);
-        return () => clearInterval(id);
-      }, []);
-
+      const [history, setHistory] = React.useState([]);
 
       React.useEffect(() => {
         let alive = true;
@@ -1167,8 +1259,54 @@ window.__ModuleLoader__.load({
           alive = false;
         };
       }, []);
-      const range = focus !== null ? null : anRange(preset, zone, now, custom);
+
+      React.useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 60_000);
+        return () => clearInterval(id);
+      }, []);
+
+      /** The preset range moved by the navigation arrows. */
+      const rangeFor = () => {
+        const parts = tzParts(zone, now);
+        const pad = (value) => String(value).padStart(2, '0');
+        if (preset === 'day') {
+          const date = anShift(parts.date, shift);
+          return { from: date, to: date };
+        }
+        if (preset === 'week') {
+          const monday = anShift(parts.date, -(parts.weekday - 1) + shift * 7);
+          return { from: monday, to: anShift(monday, 6) };
+        }
+        if (preset === 'month') {
+          const base = new Date(Date.UTC(parts.year, parts.month - 1 + shift, 1));
+          const year = base.getUTCFullYear();
+          const month = base.getUTCMonth() + 1;
+          const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+          return { from: `${year}-${pad(month)}-01`, to: `${year}-${pad(month)}-${pad(last)}` };
+        }
+        if (preset === 'd30') return { from: anShift(parts.date, -29), to: parts.date };
+        return custom;
+      };
+
+      const range = focus !== null ? null : rangeFor();
       const singleDay = range !== null && range.from === range.to;
+      const canShift = focus === null && (preset === 'day' || preset === 'week' || preset === 'month');
+
+      const remember = () => setHistory((previous) => [...previous, { preset, shift, custom, focus }].slice(-20));
+      const goBack = () => {
+        setHistory((previous) => {
+          const next = previous.slice(0, -1);
+          const last = previous[previous.length - 1];
+          if (last !== undefined) {
+            setPreset(last.preset);
+            setShift(last.shift);
+            setCustom(last.custom);
+            setFocus(last.focus);
+            setDetail(null);
+          }
+          return next;
+        });
+      };
 
       React.useEffect(() => {
         let alive = true;
@@ -1208,7 +1346,7 @@ window.__ModuleLoader__.load({
           alive = false;
           if (timer !== null) clearTimeout(timer);
         };
-      }, [preset, custom.from, custom.to, zone, model, focus, now]);
+      }, [preset, shift, custom.from, custom.to, zone, model, focus, now]);
 
       const loadMore = async () => {
         if (data === null || data.sessions.nextCursor === null) return;
@@ -1245,53 +1383,81 @@ window.__ModuleLoader__.load({
         setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       };
 
+      const openSession = (id) => {
+        try {
+          uiWorkspace?.openSession?.(id);
+        } catch {
+          /* navigation unavailable */
+        }
+      };
+
       const detailMode = focus !== null;
       const shown = detailMode ? detail : data;
       const hoursMode = mode === 'hours' || singleDay;
       const presetList = [['week', strings.week], ['month', strings.month], ['d30', strings.d30], ['day', strings.day], ['custom', strings.custom]];
+      const rangeText = range === null || range.from === '' ? '' : singleDay || range.to === ''
+        ? anDay(range.from)
+        : anDay(range.from) + '–' + anDay(range.to);
+      const crumb = detailMode
+        ? [strings.title, detail === null ? strings.loading : detail.title]
+        : [strings.title, strings[preset] + (rangeText === '' ? '' : ' · ' + rangeText)];
 
       return h('div', { className: 'an-page' },
         h('div', { className: 'an-content' },
-          h('div', { className: 'an-head' },
-            h('h1', { className: 'an-h1' }, strings.title),
-            detailMode && detail !== null
-              ? h('button', { type: 'button', className: 'an-link', onClick: () => { setFocus(null); setDetail(null); } }, strings.back)
-              : null,
+          h('div', { className: 'an-crumbs' },
+            history.length > 0 ? h('button', { type: 'button', className: 'an-back', onClick: goBack }, strings.back) : null,
+            crumb.map((part, index) => h('span', { key: part + index, className: index === crumb.length - 1 ? 'an-crumb an-crumb--last' : 'an-crumb' }, part)),
           ),
-          detailMode && detail !== null
-            ? h('div', { className: 'an-sub' },
-                h('strong', null, detail.title),
-                ' · ' + new Date(detail.firstAt).toLocaleDateString(locale) + ' — ' + new Date(detail.lastAt).toLocaleDateString(locale),
-                detail.inherited === null || detail.inherited === undefined || detail.inherited.requests === 0 ? null
-                  : h('div', { className: 'an-sub an-sub--fork' },
-                      h('span', null, strings.inherited.replace('{title}', detail.parentTitle ?? detail.parent ?? '')),
-                      ' · ' + strings.inheritedNote.replace('{cost}', anMoney(detail.inherited.cost)).replace('{requests}', String(detail.inherited.requests))),
-              )
-            : h('div', { className: 'an-controls' },
-                h('div', { className: 'an-presets' }, presetList.map(([value, label]) => h('button', {
-                  key: value,
+          h('div', { className: 'an-controls' },
+            h('div', { className: 'an-presets' },
+              presetList.map(([value, label]) => h('button', {
+                key: value,
+                type: 'button',
+                className: 'an-tab' + (preset === value && focus === null ? ' an-tab--on' : ''),
+                onClick: () => {
+                  remember();
+                  setPreset(value);
+                  setShift(0);
+                  setFocus(null);
+                  setDetail(null);
+                  setCalendar(false);
+                },
+              }, label))),
+            canShift
+              ? h('div', { className: 'an-arrows' },
+                  h('button', { type: 'button', className: 'an-arrow', onClick: () => { remember(); setShift(shift - 1); } }, '‹'),
+                  h('button', { type: 'button', className: 'an-arrow', onClick: () => { remember(); setShift(shift + 1); } }, '›'))
+              : null,
+            preset === 'custom'
+              ? h('button', {
                   type: 'button',
-                  className: 'an-tab' + (preset === value ? ' an-tab--on' : ''),
-                  onClick: () => { setPreset(value); setFocus(null); },
-                }, label))),
-                preset === 'custom'
-                  ? h('div', { className: 'an-custom' },
-                      h('span', null, strings.from),
-                      h('input', { type: 'date', value: custom.from, onChange: (event) => setCustom({ ...custom, from: event.target.value }) }),
-                      h('span', null, strings.to),
-                      h('input', { type: 'date', value: custom.to, onChange: (event) => setCustom({ ...custom, to: event.target.value }) }))
-                  : null,
-                h('div', { className: 'an-selects' },
-                  h('label', null, strings.zone,
-                    h('select', { value: zone, onChange: (event) => setZone(event.target.value) },
-                      AN_ZONES.map((value) => h('option', { key: value, value }, value)))),
-                  h('label', null, strings.model,
-                    h('select', { value: model, onChange: (event) => setModel(event.target.value) },
-                      h('option', { value: '' }, strings.allModels),
-                      h('option', { value: 'deepseek-flash' }, 'V4.1 Flash'),
-                      h('option', { value: 'deepseek-v4-pro' }, 'V4 Pro'))),
-                ),
-              ),
+                  className: 'an-range' + (calendar ? ' an-range--open' : ''),
+                  onClick: () => setCalendar(!calendar),
+                }, rangeText === '' ? strings.pickDates : rangeText)
+              : null,
+            h('div', { className: 'an-selects' },
+              h('label', null, strings.zone,
+                h('select', { value: zone, onChange: (event) => setZone(event.target.value) },
+                  AN_ZONES.map((value) => h('option', { key: value, value }, value)))),
+              h('label', null, strings.model,
+                h('select', { value: model, onChange: (event) => setModel(event.target.value) },
+                  h('option', { value: '' }, strings.allModels),
+                  h('option', { value: 'deepseek-flash' }, 'V4.1 Flash'),
+                  h('option', { value: 'deepseek-v4-pro' }, 'V4 Pro'))),
+            ),
+          ),
+          preset === 'custom' && calendar
+            ? h(RangeCalendar, {
+                from: custom.from,
+                to: custom.to,
+                locale,
+                onPick: (date) => setCustom((previous) => {
+                  if (previous.from === '' || previous.to !== '') return { from: date, to: '' };
+                  if (date < previous.from) return { from: date, to: previous.from };
+                  return { from: previous.from, to: date };
+                }),
+              })
+            : null,
           status !== null && status.building
             ? h('div', { className: 'an-note' }, strings.building + ' ' + status.done + ' / ' + status.total)
             : null,
@@ -1314,6 +1480,18 @@ window.__ModuleLoader__.load({
                     h('span', { className: 'an-kpi-label' }, strings.sessions),
                     h('span', { className: 'an-kpi-value' }, detailMode ? '1' : String(data === null ? 0 : data.sessions.total))),
                 ),
+                detailMode && detail !== null
+                  ? h('div', { className: 'an-forkline' },
+                      detail.inherited !== null && detail.inherited.requests > 0
+                        ? h('span', null,
+                            strings.inheritedPrefix + ' ',
+                            detail.parentExists === true
+                              ? h('button', { type: 'button', className: 'dp-link', onClick: () => openSession(detail.parent) }, detail.parentTitle ?? detail.parent)
+                              : h('span', null, detail.parentTitle ?? detail.parent),
+                            ' (' + anMoney(detail.inherited.cost) + ')')
+                        : null,
+                      h('button', { type: 'button', className: 'an-tab', onClick: () => openSession(detail.key) }, strings.openSession))
+                  : null,
                 h('div', { className: 'an-chart-head' },
                   h('div', { className: 'an-seg' },
                     h('button', { type: 'button', className: 'an-tab' + (!hoursMode ? ' an-tab--on' : ''), onClick: () => setMode('days') }, strings.byDays),
@@ -1326,7 +1504,13 @@ window.__ModuleLoader__.load({
                       h(SpendingCharts, {
                         mode: hoursMode ? 'hours' : 'days',
                         data: shown,
-                        onPickDay: (date) => { setFocus(null); setCustom({ from: date, to: date }); setPreset('custom'); },
+                        onPickDay: (date) => {
+                          remember();
+                          setFocus(null);
+                          setCustom({ from: date, to: date });
+                          setPreset('custom');
+                          setShift(0);
+                        },
                       }),
                       detailMode
                         ? h('div', { className: 'an-days' }, shown.days.map((item) => h('div', { key: item.date, className: 'an-day-row' },
@@ -1345,9 +1529,14 @@ window.__ModuleLoader__.load({
                               key: row.key,
                               type: 'button',
                               className: 'an-table-row',
-                              onClick: () => { setFocus(row.key); setDetail(null); },
+                              onClick: () => { remember(); setFocus(row.key); setDetail(null); },
                             },
-                              h('span', { className: 'an-name' }, row.title || row.id, row.parent === null || row.parent === undefined ? null : h('span', { className: 'an-fork', title: strings.inherited.replace('{title}', row.parentTitle ?? '') }, strings.fork)),
+                              h('span', { className: 'an-name' }, row.title || row.id,
+                                row.subagent === true
+                                  ? h('span', { className: 'an-badge' }, strings.subagent)
+                                  : row.parent !== null && row.parent !== undefined
+                                    ? h('span', { className: 'an-badge' }, strings.fork)
+                                    : null),
                               h('span', { className: 'an-dim' }, anLocalDay(row.firstAt, zone) + '–' + anLocalDay(row.lastAt, zone)),
                               h('span', { className: 'an-right an-strong' }, anMoney(row.cost)),
                               h('span', { className: 'an-right an-dim' }, String(row.requests)),
@@ -1364,7 +1553,7 @@ window.__ModuleLoader__.load({
     //#endregion
 
     return {
-      inject: ['slots', 'sessions'],
+      inject: ['slots', 'sessions', 'uiWorkspace'],
       apply(ctx) {
         ensureStyles();
         ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register(
@@ -1374,7 +1563,7 @@ window.__ModuleLoader__.load({
             order: 500,
             // The slot hands over sessionId and `t`; the sessions service has to
             // come from the plugin scope, so pass it through the entry inject.
-            inject: () => ({ sessions: ctx.sessions }),
+            inject: () => ({ sessions: ctx.sessions, uiWorkspace: ctx.uiWorkspace }),
           },
           (props) => h(PricingChip, props),
         ));
@@ -1400,7 +1589,8 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('main', () => ctx.slots.register({
             name: 'main',
             key: 'spending',
-          }, () => h(SpendingPage)));
+            inject: () => ({ uiWorkspace: ctx.uiWorkspace }),
+          }, (props) => h(SpendingPage, props)));
         } catch (error) {
           console.warn('dsh-pricing: spending section registration failed', error);
         }
