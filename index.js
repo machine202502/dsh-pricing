@@ -231,6 +231,20 @@ function sessionLedger(sessionId, prices) {
  * prefix of a fork is reported separately, and the reset marker slices the
  * since-reset total.
  */
+/** Sum of two ledger totals, field by field. */
+function mergeTotals(base, extra) {
+  return {
+    cost: base.cost + extra.cost,
+    requests: base.requests + extra.requests,
+    turns: base.turns + extra.turns,
+    peakRequests: base.peakRequests + extra.peakRequests,
+    uncached: base.uncached + extra.uncached,
+    cacheRead: base.cacheRead + extra.cacheRead,
+    cacheWrite: base.cacheWrite + extra.cacheWrite,
+    output: base.output + extra.output,
+  };
+}
+
 function sessionCost(sessionId, modelId, data, resetAt) {
   const ledger = sessionLedger(sessionId, data);
   if (ledger === null) return null;
@@ -343,16 +357,24 @@ export function apply(ctx, config = {}) {
     if (path === '/health') return json(200, { ok: true, port });
     const costPayload = (sessionId, modelId) => {
       const reset = resetOf(sessionId);
-      const totals = sessionCost(sessionId, modelId, state.data, reset === null ? null : reset.at);
+      const resetAt = reset === null ? null : reset.at;
+      const totals = sessionCost(sessionId, modelId, state.data, resetAt);
+      if (totals === null) {
+        return { all: null, since: null, inherited: null, parent: null, parentTitle: null, parentExists: false, title: null, reset, subagents: null };
+      }
+      // The chip shows the whole chat: its own requests plus every sub-agent session.
+      const subs = analytics.subagentTotals(sessionId, { model: modelId ?? '' });
+      const subsSince = resetAt === null ? subs : analytics.subagentTotals(sessionId, { model: modelId ?? '', sinceAt: resetAt });
       return {
-        all: totals?.all ?? null,
-        since: totals?.since ?? null,
-        inherited: totals?.inherited ?? null,
-        parent: totals?.parent ?? null,
-        parentTitle: totals?.parentTitle ?? null,
-        parentExists: totals?.parentExists === true,
-        title: totals?.title ?? null,
+        all: mergeTotals(totals.all, subs),
+        since: mergeTotals(totals.since, subsSince),
+        inherited: totals.inherited,
+        parent: totals.parent,
+        parentTitle: totals.parentTitle,
+        parentExists: totals.parentExists === true,
+        title: totals.title,
         reset,
+        subagents: { cost: subs.cost, requests: subs.requests, sessions: subs.sessions, since: subsSince.cost, sinceSessions: subsSince.sessions },
       };
     };
     if (path === '/session-cost' && request.method === 'GET') {
@@ -422,6 +444,7 @@ export function apply(ctx, config = {}) {
           sort: url.searchParams.get('sort') ?? undefined,
           cursor: Number(url.searchParams.get('cursor') ?? 0),
           limit: Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? 50))),
+          split: url.searchParams.get('split') === '1',
         };
         return json(200, { ready: !status.building && status.sessions > 0, status, ...analytics.query(query) });
       } catch (error) {

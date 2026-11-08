@@ -65,6 +65,7 @@ window.__ModuleLoader__.load({
         spendNote: 'по фактическим токенам провайдера',
         inheritedLine: 'Унаследовано из «{title}»: {cost} · не входит в сумму',
         inheritedPrefix: 'Унаследовано из',
+        subagentsLine: 'включая суб-агентов',
         archive: 'архив',
         tokensInput: 'вход',
         tokensCache: 'кэш',
@@ -111,6 +112,7 @@ window.__ModuleLoader__.load({
         spendNote: 'from provider-reported tokens',
         inheritedLine: 'Inherited from «{title}»: {cost} · excluded from totals',
         inheritedPrefix: 'Inherited from',
+        subagentsLine: 'including sub-agents',
         archive: 'archive',
         tokensInput: 'input',
         tokensCache: 'cache',
@@ -157,6 +159,7 @@ window.__ModuleLoader__.load({
         spendNote: '按提供方实际 token 计费',
         inheritedLine: '继承自「{title}」：{cost} · 不计入合计',
         inheritedPrefix: '继承自',
+        subagentsLine: '含子代理',
         archive: '归档',
         tokensInput: '输入',
         tokensCache: '缓存',
@@ -563,9 +566,9 @@ window.__ModuleLoader__.load({
       return body;
     };
 
-    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, parentLive, parentArchived, reset, resetting, when, onReset, onClearReset, onOpenSession }) {
+    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, parentLive, parentArchived, subagents, reset, resetting, when, onReset, onClearReset, onOpenSession }) {
       const strings = STRINGS[language];
-      const spendBlock = (label, spend) => (spend === null || spend.turns === 0
+      const spendBlock = (label, spend, extra) => (spend === null || spend.turns === 0
         ? h('div', { className: 'dp-tip-row' },
             h('span', null, label),
             h('span', { className: 'dp-tip-dim' }, '—'),
@@ -579,6 +582,11 @@ window.__ModuleLoader__.load({
               h('span', { className: 'dp-tip-dim' },
                 `${strings.tokensInput} ${tokens(spend.uncached + spend.cacheWrite)} · ${strings.tokensCache} ${tokens(spend.cacheRead)} · ${strings.tokensOutput} ${tokens(spend.output)}`),
             ),
+            extra !== null && extra !== undefined && extra.sessions > 0
+              ? h('div', { className: 'dp-tip-row' },
+                  h('span', { className: 'dp-tip-dim' }, `${strings.subagentsLine}: ${moneySpend(extra.cost)} · ${extra.sessions}`),
+                )
+              : null,
           ));
       const peak = peakAt(data, now);
       const flip = nextFlip(data, now);
@@ -643,9 +651,9 @@ window.__ModuleLoader__.load({
           h('tbody', null, rows),
         ),
         h('div', { className: 'dp-tip-hr' }),
-        spendBlock(strings.sessionTitle, spendAll),
+        spendBlock(strings.sessionTitle, spendAll, subagents),
         h('div', { className: 'dp-tip-hr' }),
-        spendBlock(strings.sinceReset, spendSince),
+        spendBlock(strings.sinceReset, spendSince, subagents === null ? null : { cost: subagents.since, sessions: subagents.sinceSessions }),
         inherited !== null && inherited !== undefined && inherited.requests > 0
           ? h('div', { className: 'dp-tip-row', style: { marginTop: '4px' } },
               h('span', { className: 'dp-tip-dim' }, strings.inheritedPrefix + ' '),
@@ -887,6 +895,7 @@ window.__ModuleLoader__.load({
               spendSince,
               inherited: cost === null ? null : (cost.inherited ?? null),
               parentTitle: cost === null ? null : (cost.parentTitle ?? null),
+              subagents: cost === null ? null : (cost.subagents ?? null),
               parentLive: cost === null || cost.parent === null ? false : (liveSessionIds.has(cost.parent) && !archivedSessionIds.has(cost.parent)),
               parentArchived: cost === null || cost.parent === null ? false : archivedSessionIds.has(cost.parent),
               onOpenSession: (id) => { try { uiWorkspace?.openSession?.(id); } catch { /* navigation unavailable */ } },
@@ -1028,7 +1037,10 @@ window.__ModuleLoader__.load({
         fork: 'форк',
         subagent: 'сабагент',
         archive: 'архив',
+        split: 'Разбивка по суб-агентам',
+        includeSubagents: 'включая суб-агентов',
         inheritedPrefix: 'Унаследовано из',
+
 
         openSession: 'Открыть сессию',
         pickDates: 'Выберите даты',
@@ -1072,7 +1084,10 @@ window.__ModuleLoader__.load({
         fork: 'fork',
         subagent: 'subagent',
         archive: 'archive',
+        split: 'Split sub-agent chats',
+        includeSubagents: 'including sub-agents',
         inheritedPrefix: 'Inherited from',
+
 
         openSession: 'Open session',
         pickDates: 'Pick dates',
@@ -1116,7 +1131,10 @@ window.__ModuleLoader__.load({
         fork: '分叉',
         subagent: '子代理',
         archive: '归档',
+        split: '按子代理拆分',
+        includeSubagents: '含子代理',
         inheritedPrefix: '继承自',
+
 
         openSession: '打开会话',
         pickDates: '选择日期',
@@ -1280,6 +1298,7 @@ window.__ModuleLoader__.load({
       const [now, setNow] = React.useState(Date.now());
       const [reload, setReload] = React.useState(0);
       const [history, setHistory] = React.useState([]);
+      const [split, setSplit] = React.useState(false);
 
       // Live session list: only these ids may be opened, everything else is text.
       const listStore = sessions?.list;
@@ -1356,7 +1375,7 @@ window.__ModuleLoader__.load({
       const canShift = focus === null && !allMode && (preset === 'day' || preset === 'week' || preset === 'month');
       const hoursMode = singleDay;
 
-      const remember = () => setHistory((previous) => [...previous, { view, preset, shift, custom, focus }].slice(-20));
+      const remember = () => setHistory((previous) => [...previous, { view, preset, shift, custom, focus, split }].slice(-20));
       const goBack = () => {
         setHistory((previous) => {
           const last = previous[previous.length - 1];
@@ -1366,6 +1385,7 @@ window.__ModuleLoader__.load({
             setShift(last.shift);
             setCustom(last.custom);
             setFocus(last.focus);
+            setSplit(last.split === true);
             setDetail(null);
           }
           return previous.slice(0, -1);
@@ -1387,8 +1407,8 @@ window.__ModuleLoader__.load({
               return;
             }
             const query = allMode
-              ? { scope: 'all', tz: zone, model, limit: 100 }
-              : { from: range.from, to: range.to, tz: zone, model, limit: 50 };
+              ? { scope: 'all', tz: zone, model, limit: 100, split: split ? 1 : 0 }
+              : { from: range.from, to: range.to, tz: zone, model, limit: 50, split: split ? 1 : 0 };
             const body = await anApi('/analytics', query);
             if (!alive) return;
             setStatus(body.status ?? null);
@@ -1413,13 +1433,13 @@ window.__ModuleLoader__.load({
           alive = false;
           if (timer !== null) clearTimeout(timer);
         };
-      }, [view, preset, shift, custom.from, custom.to, zone, model, focus, now, reload]);
+      }, [view, preset, shift, custom.from, custom.to, zone, model, focus, now, reload, split]);
 
       const loadMore = async () => {
         if (data === null || data.sessions.nextCursor === null) return;
         const query = allMode
-          ? { scope: 'all', tz: zone, model, cursor: data.sessions.nextCursor, limit: 100 }
-          : { from: range.from, to: range.to, tz: zone, model, cursor: data.sessions.nextCursor, limit: 50 };
+          ? { scope: 'all', tz: zone, model, cursor: data.sessions.nextCursor, limit: 100, split: split ? 1 : 0 }
+          : { from: range.from, to: range.to, tz: zone, model, cursor: data.sessions.nextCursor, limit: 50, split: split ? 1 : 0 };
         const body = await anApi('/analytics', query);
         setData({
           ...data,
@@ -1531,6 +1551,11 @@ window.__ModuleLoader__.load({
                     },
                   }, label)))
               : null,
+            h('button', {
+              type: 'button',
+              className: 'an-tab' + (split ? ' an-tab--on' : ''),
+              onClick: () => { remember(); setSplit(!split); },
+            }, strings.split),
             canShift
               ? h('div', { className: 'an-arrows' },
                   h('button', { type: 'button', className: 'an-arrow', onClick: () => { remember(); setShift(shift - 1); } }, '‹'),
@@ -1586,6 +1611,9 @@ window.__ModuleLoader__.load({
                 ),
                 detailMode && detail !== null
                   ? h('div', { className: 'an-forkline' },
+                      detail.subagents !== null && detail.subagents !== undefined && detail.subagents.cost > 0
+                        ? h('span', null, `${strings.includeSubagents}: ${anMoney(detail.subagents.cost)} · ${detail.subagents.sessions}`)
+                        : null,
                       detail.inherited !== null && detail.inherited.requests > 0
                         ? h('span', null,
                             strings.inheritedPrefix + ' ',

@@ -177,7 +177,59 @@ const payload = { version: INDEX_VERSION, builtAt: Date.now(), sessions: Object.
    * @param query - local dates, zone, optional session/model filter, sort,
    *   cursor and limit for the session page.
    */
-  function query({ from, to, tz, session, model, sort = 'cost', cursor = 0, limit = 50, scope }) {
+  /** Session key for a session id (the map is keyed by directory name). */
+  function keyOfId(id) {
+    for (const [key, item] of sessions) if (item.id === id) return key;
+    return null;
+  }
+
+  /** Every descendant session key, depth-first and cycle-safe. */
+  function descendantKeys(sessionId) {
+    const children = new Map();
+    for (const [key, item] of sessions) {
+      if (item.parent === null || item.parent === undefined) continue;
+      if (Number(item.depth ?? 0) <= 0) continue;
+      const list = children.get(item.parent) ?? [];
+      list.push(item.id);
+      children.set(item.parent, list);
+    }
+    const out = [];
+    const seen = new Set([sessionId]);
+    const stack = [sessionId];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      for (const childId of children.get(current) ?? []) {
+        if (seen.has(childId)) continue;
+        seen.add(childId);
+        const childKey = keyOfId(childId);
+        if (childKey === null) continue;
+        out.push(childKey);
+        stack.push(childId);
+      }
+    }
+    return out;
+  }
+
+  /** Spend of every descendant session, optionally sliced by model and instant. */
+  function subagentTotals(sessionId, { model = '', sinceAt = null } = {}) {
+    load();
+    const modelIndex = model === undefined || model === null || model === '' ? -1 : MODEL_CODES.indexOf(model);
+    const total = emptyTotal();
+    const active = new Set();
+    for (const key of descendantKeys(sessionId)) {
+      const item = sessions.get(key);
+      if (item === undefined) continue;
+      for (const entry of item.entries) {
+        if (modelIndex >= 0 && entry.model !== modelIndex) continue;
+        if (sinceAt !== null && entry.at < sinceAt) continue;
+        addUsage(total, entry, entry.period);
+        active.add(key);
+      }
+    }
+    return { ...total, sessions: active.size };
+  }
+
+  function query({ from, to, tz, session, model, sort = 'cost', cursor = 0, limit = 50, scope, split = false }) {
     load();
     const zone = tz || 'UTC';
     const modelIndex = model === undefined || model === null || model === '' ? -1 : MODEL_CODES.indexOf(model);
@@ -190,42 +242,78 @@ const payload = { version: INDEX_VERSION, builtAt: Date.now(), sessions: Object.
     const hours = Array.from({ length: 24 }, () => emptyTotal());
     const rows = [];
 
-    for (const [key, item] of sessions) {
-      if (session !== undefined && session !== null && session !== '' && key !== session) continue;
+    // By default a session and all its descendants form one row, so the parent
+    // shows the full spend of the chat. With `split` every session gets its own
+    // row and parent rows hold only their own requests.
+    const byId = new Map();
+    for (const [key, item] of sessions) byId.set(item.id, key);
+    const rootKeyOf = (key) => {
+      let current = key;
+      const seen = new Set();
+      while (true) {
+        if (seen.has(current)) return current;
+        seen.add(current);
+        const currentItem = sessions.get(current);
+        if (Number(currentItem?.depth ?? 0) <= 0) return current;
+        const item = sessions.get(current);
+        const parentKey = item?.parent === null || item?.parent === undefined ? null : byId.get(item.parent);
+        if (parentKey === null || parentKey === undefined || !sessions.has(parentKey)) return current;
+        current = parentKey;
+      }
+    };
+    const groups = new Map();
+    for (const key of sessions.keys()) {
+      const groupKey = split ? key : rootKeyOf(key);
+      const list = groups.get(groupKey) ?? [];
+      list.push(key);
+      groups.set(groupKey, list);
+    }
+
+    for (const [groupKey, memberKeys] of groups) {
+      if (session !== undefined && session !== null && session !== '' && groupKey !== session) continue;
+      const item = sessions.get(groupKey);
       const row = emptyTotal();
       const activeDays = new Set();
       let seen = false;
-      for (const entry of item.entries) {
-        const dayOf = zonedParts(entry.at, zone).date;
-        activeDays.add(dayOf);
-        if (modelIndex >= 0 && entry.model !== modelIndex) continue;
-        if (entry.at < start || entry.at >= end) continue;
-        seen = true;
-        addUsage(row, entry, entry.period);
-        addUsage(totals, entry, entry.period);
-        const parts = { date: dayOf, hour: zonedParts(entry.at, zone).hour };
-        const day = days.get(parts.date) ?? emptyTotal();
-        addUsage(day, entry, entry.period);
-        days.set(parts.date, day);
-        addUsage(hours[parts.hour], entry, entry.period);
+      let firstAt = null;
+      let lastAt = null;
+      for (const memberKey of memberKeys) {
+        const member = sessions.get(memberKey);
+        if (member === undefined) continue;
+        if (typeof member.firstAt === 'number' && (firstAt === null || member.firstAt < firstAt)) firstAt = member.firstAt;
+        if (typeof member.lastAt === 'number' && (lastAt === null || member.lastAt > lastAt)) lastAt = member.lastAt;
+        for (const entry of member.entries) {
+          const parts = zonedParts(entry.at, zone);
+          activeDays.add(parts.date);
+          if (modelIndex >= 0 && entry.model !== modelIndex) continue;
+          if (entry.at < start || entry.at >= end) continue;
+          seen = true;
+          addUsage(row, entry, entry.period);
+          addUsage(totals, entry, entry.period);
+          const day = days.get(parts.date) ?? emptyTotal();
+          addUsage(day, entry, entry.period);
+          days.set(parts.date, day);
+          addUsage(hours[parts.hour], entry, entry.period);
+        }
       }
       if (!seen) continue;
       rows.push({
-        key,
-        id: item.id,
-        title: item.title,
-        project: item.project,
-        firstAt: item.firstAt,
-        lastAt: item.lastAt,
-        parent: item.parent ?? null,
-        subagent: Number(item.depth ?? 0) > 0,
-        parentExists: item.parent === null || item.parent === undefined ? false : [...sessions.values()].some((candidate) => candidate.id === item.parent),
-        parentTitle: item.parent === null || item.parent === undefined ? null : titleOf(item.parent),
-        inherited: item.inherited ?? null,
+        key: groupKey,
+        id: item?.id ?? groupKey,
+        title: item?.title ?? null,
+        project: item?.project ?? null,
+        firstAt: firstAt ?? item?.firstAt ?? null,
+        lastAt: lastAt ?? item?.lastAt ?? null,
+        parent: item?.parent ?? null,
+        subagent: split ? Number(item?.depth ?? 0) > 0 : false,
+        parentExists: item?.parent === null || item?.parent === undefined ? false : [...sessions.values()].some((candidate) => candidate.id === item.parent),
+        parentTitle: item?.parent === null || item?.parent === undefined ? null : titleOf(item.parent),
+        inherited: item?.inherited ?? null,
         activeDays: activeDays.size,
         ...row,
       });
     }
+
 
     rows.sort((left, right) => (sort === 'date' ? (right.lastAt ?? 0) - (left.lastAt ?? 0) : right.cost - left.cost));
     const page = rows.slice(cursor, cursor + limit);
@@ -279,10 +367,12 @@ const payload = { version: INDEX_VERSION, builtAt: Date.now(), sessions: Object.
       days: [...days.entries()].map(([date, value]) => ({ date, ...value })).sort((a, b) => a.date.localeCompare(b.date)),
       hours: hours.map((value, hour) => ({ hour, ...value })),
       models: [...perModel.entries()].map(([modelName, value]) => ({ model: modelName, ...value })),
+      subagents: subagentTotals(item.id),
     };
   }
 
   return {
+    subagentTotals,
     status() {
       load();
       return { building: state.building, done: state.done, total: state.total, sessions: sessions.size, error: state.error, builtAt: state.builtAt };

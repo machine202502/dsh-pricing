@@ -134,6 +134,19 @@ logs.
 
 They are different things and never mixed in the UI.
 
+## Sub-agent sessions
+
+A session started by a sub-agent is its own chat with its own log. The plugin
+treats it as part of the chat that spawned it:
+
+- **chip and its card** always show the whole chat: its own requests plus every
+  sub-agent session (recursively), plus a line «including sub-agents: $X · N»;
+- **spending page** has a «Split sub-agent chats» toggle, off by default:
+  - off — sub-agent sessions are folded into the parent row, so each chat shows
+    its full cost;
+  - on — sub-agent sessions become separate rows and their cost is removed from
+    the parent row, keeping every total exactly once.
+
 ## Forked sessions
 
 A fork copies the parent history, and its log contains the same `usage` records
