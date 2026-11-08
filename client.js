@@ -63,6 +63,7 @@ window.__ModuleLoader__.load({
         sessionTitle: 'Сессия',
         nowTag: 'сейчас',
         spendNote: 'по фактическим токенам провайдера',
+        inheritedLine: 'Унаследовано из «{title}»: {cost} · не входит в сумму',
         tokensInput: 'вход',
         tokensCache: 'кэш',
         tokensOutput: 'выход',
@@ -106,6 +107,7 @@ window.__ModuleLoader__.load({
         sessionTitle: 'Session',
         nowTag: 'now',
         spendNote: 'from provider-reported tokens',
+        inheritedLine: 'Inherited from «{title}»: {cost} · excluded from totals',
         tokensInput: 'input',
         tokensCache: 'cache',
         tokensOutput: 'output',
@@ -149,6 +151,7 @@ window.__ModuleLoader__.load({
         sessionTitle: '会话',
         nowTag: '当前',
         spendNote: '按提供方实际 token 计费',
+        inheritedLine: '继承自「{title}」：{cost} · 不计入合计',
         tokensInput: '输入',
         tokensCache: '缓存',
         tokensOutput: '输出',
@@ -503,7 +506,7 @@ window.__ModuleLoader__.load({
       return body;
     };
 
-    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, reset, resetting, when, onReset, onClearReset }) {
+    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, reset, resetting, when, onReset, onClearReset }) {
       const strings = STRINGS[language];
       const spendBlock = (label, spend) => (spend === null || spend.turns === 0
         ? h('div', { className: 'dp-tip-row' },
@@ -586,6 +589,11 @@ window.__ModuleLoader__.load({
         spendBlock(strings.sessionTitle, spendAll),
         h('div', { className: 'dp-tip-hr' }),
         spendBlock(strings.sinceReset, spendSince),
+        inherited !== null && inherited !== undefined && inherited.requests > 0
+          ? h('div', { className: 'dp-tip-row', style: { marginTop: '4px' } },
+              h('span', { className: 'dp-tip-dim' }, fill(strings.inheritedLine, { title: parentTitle ?? '—', cost: moneySpend(inherited.cost) })),
+            )
+          : null,
         reset !== null
           ? h('div', { className: 'dp-tip-row', style: { marginTop: '4px' } },
               h('span', { className: 'dp-tip-dim' }, `${fill(strings.resetAt, { when: when })}${reset.requests > 0 ? ` · ${fill(strings.resetFrom, { count: reset.requests })}` : ''}`),
@@ -800,6 +808,8 @@ window.__ModuleLoader__.load({
               refreshing,
               spendAll,
               spendSince,
+              inherited: cost === null ? null : (cost.inherited ?? null),
+              parentTitle: cost === null ? null : (cost.parentTitle ?? null),
               reset,
               resetting,
               when,

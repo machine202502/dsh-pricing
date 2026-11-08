@@ -14,12 +14,12 @@
  */
 
 import { createServer } from 'node:http';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
-import { zstdDecompressSync } from 'node:zlib';
 import { createAnalytics } from './analytics.js';
+import { findSessionLog, metaOf, parseSessionLog, readSessionMeta, summarize } from './ledger.js';
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'dsh-pricing';
@@ -176,109 +176,6 @@ function saveSettings(input) {
 }
 
 //#region session spend
-const DAY_INDEX = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-
-/** Wall-clock parts of an instant in one time zone. */
-function zoneParts(zone, ms) {
-  const out = {};
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone ?? 'UTC',
-    hourCycle: 'h23',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  for (const part of formatter.formatToParts(new Date(ms))) out[part.type] = part.value;
-  return {
-    weekday: DAY_INDEX[out.weekday] ?? 1,
-    year: Number(out.year),
-    month: Number(out.month),
-    day: Number(out.day),
-    hour: Number(out.hour) % 24,
-    minute: Number(out.minute),
-    date: `${out.year}-${out.month}-${out.day}`,
-  };
-}
-
-const toMinutes = (hm) => {
-  const [hour, minute] = String(hm).split(':').map(Number);
-  return hour * 60 + minute;
-};
-
-/** Whether the provider's peak schedule covered one instant. */
-function peakAt(peak, ms) {
-  if (peak === undefined || peak === null || !Array.isArray(peak.windows) || peak.windows.length === 0) return false;
-  const parts = zoneParts(peak.tz, ms);
-  const days = Array.isArray(peak.days) && peak.days.length > 0 ? peak.days : [1, 2, 3, 4, 5];
-  if (!days.includes(parts.weekday)) return false;
-  if ((peak.holidays ?? []).includes(parts.date)) return false;
-  const minutes = parts.hour * 60 + parts.minute;
-  return peak.windows.some((window) => {
-    const from = toMinutes(window.from);
-    const to = toMinutes(window.to);
-    return to > from ? minutes >= from && minutes < to : minutes >= from || minutes < to;
-  });
-}
-
-/** Locate the durable session log under the DSH home. */
-function findSessionLog(sessionId) {
-  if (typeof sessionId !== 'string' || !/^session-[0-9a-f-]+$/u.test(sessionId)) return null;
-  const root = join(DSH_HOME, 'sessions');
-  let groups;
-  try {
-    groups = readdirSync(root, { withFileTypes: true });
-  } catch {
-    return null;
-  }
-  for (const group of groups) {
-    if (!group.isDirectory()) continue;
-    const directory = join(root, group.name, sessionId);
-    if (!existsSync(directory)) continue;
-    let files;
-    try {
-      files = readdirSync(directory).filter((name) => /^session\.v\d+\.jsonl\.zstd$/u.test(name));
-    } catch {
-      continue;
-    }
-    if (files.length > 0) return join(directory, files[0]);
-  }
-  return null;
-}
-
-/** Decompress every zstd frame of a session log into one JSONL string. */
-function readSessionLog(file) {
-  const raw = readFileSync(file);
-  const offsets = [];
-  for (let index = 0; index + 4 <= raw.length; index += 1) {
-    if (raw[index] === 0x28 && raw[index + 1] === 0xb5 && raw[index + 2] === 0x2f && raw[index + 3] === 0xfd) offsets.push(index);
-  }
-  let text = '';
-  for (let index = 0; index < offsets.length; index += 1) {
-    const end = index + 1 < offsets.length ? offsets[index + 1] : raw.length;
-    try {
-      text += zstdDecompressSync(raw.subarray(offsets[index], end)).toString('utf8');
-    } catch {
-      /* a torn final frame is fine */
-    }
-  }
-  return text;
-}
-
-/** One cached parse of a session log, keyed by path/size/mtime. */
-const costCache = { key: '', value: null };
-
-/**
- * Actual spend for a session: every provider-reported usage record is priced
- * with the tariff that was in force at that record's own timestamp, so turns
- * recorded during peak stay priced at the peak rate.
- *
- * @param sessionId - session whose durable log to read.
- * @param modelId - tariff to apply (the session's selected model).
- * @param data - current price snapshot.
- */
 /** The stored reset marker for one Session, if any. */
 function resetOf(sessionId) {
   const stored = readJson(RESETS_FILE);
@@ -296,71 +193,55 @@ function writeReset(sessionId, entry) {
   writeJson(RESETS_FILE, resets);
 }
 
-/** One accumulator of priced provider usage. */
-function emptyTotal() {
-  return { cost: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, turns: 0, peakTurns: 0 };
+/** Projection metadata is reused across polls instead of re-read per request. */
+const metaCache = { at: 0, value: new Map() };
+function sessionMeta() {
+  if (Date.now() - metaCache.at < 30_000) return metaCache.value;
+  metaCache.value = readSessionMeta(DSH_HOME);
+  metaCache.at = Date.now();
+  return metaCache.value;
 }
 
-/** Fold one provider usage record into an accumulator. */
-function addUsage(total, usage, period, prices) {
-  const uncached = Number(usage.uncachedInputTokens ?? usage.inputTokens ?? 0);
-  const cacheRead = Number(usage.cacheReadTokens ?? 0);
-  const cacheWrite = Number(usage.cacheWriteTokens ?? 0);
-  const output = Number(usage.outputTokens ?? 0);
-  total.cost += ((uncached + cacheWrite) / 1e6) * (prices.input?.[period] ?? 0);
-  total.cost += (cacheRead / 1e6) * (prices.cacheHit?.[period] ?? 0);
-  total.cost += (output / 1e6) * (prices.output?.[period] ?? 0);
-  total.uncached += uncached;
-  total.cacheRead += cacheRead;
-  total.cacheWrite += cacheWrite;
-  total.output += output;
-  total.turns += 1;
-  if (period === 'peak') total.peakTurns += 1;
+/** Parsed ledgers are cached by log generation and inherited-event count. */
+const ledgerCache = new Map();
+function sessionLedger(sessionId, prices) {
+  const file = findSessionLog(join(DSH_HOME, 'sessions'), sessionId);
+  if (file === null) return null;
+  let stat;
+  try {
+    stat = statSync(file);
+  } catch {
+    return null;
+  }
+  const info = metaOf(sessionMeta(), sessionId);
+  const inheritedLimit = info?.inherited ?? 0;
+  const key = file + '|' + stat.size + '|' + stat.mtimeMs + '|' + inheritedLimit;
+  const cached = ledgerCache.get(key);
+  if (cached !== undefined) return cached;
+  const parsed = parseSessionLog(file, { prices, inheritedLimit });
+  const value = { ...parsed, file, title: info?.title ?? sessionId };
+  ledgerCache.set(key, value);
+  if (ledgerCache.size > 8) ledgerCache.clear();
+  return value;
 }
 
 /**
- * Actual spend for a Session: every provider-reported usage record is priced
- * with the tariff that was in force at that record's own timestamp, so turns
- * recorded during peak stay priced at the peak rate.
- *
- * Two slices come back: the whole durable log and, when a reset marker exists,
- * everything recorded at or after it.
- *
- * @param sessionId - session whose durable log to read.
- * @param modelId - tariff to apply (the session's selected model).
- * @param data - current price snapshot.
- * @param resetAt - reset marker timestamp in ms, or null.
+ * Actual spend for a Session, from the shared ledger: every provider-reported
+ * record is priced with the tariff in force at its own timestamp, the copied
+ * prefix of a fork is reported separately, and the reset marker slices the
+ * since-reset total.
  */
 function sessionCost(sessionId, modelId, data, resetAt) {
-  const file = findSessionLog(sessionId);
-  if (file === null) return null;
-  const prices = data.models?.[modelId] ?? data.models?.['deepseek-flash'];
-  if (prices === undefined) return null;
-  const stat = statSync(file);
-  const key = `${file}|${stat.size}|${stat.mtimeMs}|${modelId}|${resetAt ?? 0}`;
-  if (costCache.key === key) return costCache.value;
-
-  const all = emptyTotal();
-  const since = emptyTotal();
-  for (const line of readSessionLog(file).split('\n')) {
-    if (line.length === 0) continue;
-    let record;
-    try {
-      record = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const usage = record?.data?.message?.usage ?? record?.data?.usage;
-    if (usage === undefined || usage === null) continue;
-    const at = Number(record.time);
-    const period = Number.isFinite(at) && peakAt(data.peak, at) ? 'peak' : 'off';
-    addUsage(all, usage, period, prices);
-    if (resetAt !== null && Number.isFinite(at) && at >= resetAt) addUsage(since, usage, period, prices);
-  }
-  const value = { all, since: resetAt === null ? all : since };
-  costCache.key = key;
-  costCache.value = value;
-  return value;
+  const ledger = sessionLedger(sessionId, data);
+  if (ledger === null) return null;
+  return {
+    all: summarize(ledger.entries),
+    since: resetAt === null ? summarize(ledger.entries) : summarize(ledger.entries, { from: resetAt }),
+    inherited: ledger.inherited,
+    parent: ledger.parent,
+    parentTitle: ledger.parent === null ? null : (metaOf(sessionMeta(), ledger.parent)?.title ?? null),
+    title: ledger.title,
+  };
 }
 //#endregion
 
@@ -462,7 +343,15 @@ export function apply(ctx, config = {}) {
     const costPayload = (sessionId, modelId) => {
       const reset = resetOf(sessionId);
       const totals = sessionCost(sessionId, modelId, state.data, reset === null ? null : reset.at);
-      return { all: totals?.all ?? null, since: totals?.since ?? null, reset };
+      return {
+        all: totals?.all ?? null,
+        since: totals?.since ?? null,
+        inherited: totals?.inherited ?? null,
+        parent: totals?.parent ?? null,
+        parentTitle: totals?.parentTitle ?? null,
+        title: totals?.title ?? null,
+        reset,
+      };
     };
     if (path === '/session-cost' && request.method === 'GET') {
       const sessionId = url.searchParams.get('session') ?? '';
