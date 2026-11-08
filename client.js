@@ -257,6 +257,8 @@ window.__ModuleLoader__.load({
         background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
       .an-btn:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
       .an-btn:disabled { opacity: .5; cursor: default; }
+      .an-btn--open { border-color: rgba(47,107,255,.45); color: #2f6bff; }
+      .an-btn--open:hover:not(:disabled) { background: rgba(47,107,255,.08); color: #2f6bff; }
       .an-iconbtn { width: 28px; height: 28px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.16)); border-radius: 8px;
         background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
       .an-iconbtn:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
@@ -1594,7 +1596,7 @@ window.__ModuleLoader__.load({
                             isArchived(detail.parent) ? h('span', { className: 'an-badge an-badge--muted' }, strings.archive) : null)
                         : null,
                       isLive(detail.key)
-                        ? h('button', { type: 'button', className: 'an-tab', onClick: () => openSession(detail.key) }, strings.openSession)
+                        ? h('button', { type: 'button', className: 'an-btn an-btn--open', onClick: () => openSession(detail.key) }, strings.openSession)
                         : null)
                   : null,
                 h('div', { className: 'an-chart-head' },
