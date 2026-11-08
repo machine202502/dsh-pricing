@@ -248,6 +248,14 @@ window.__ModuleLoader__.load({
       .an-kpi-value { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
       .an-kpi-sub { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
       .an-chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .an-btn { height: 28px; padding: 0 12px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.16)); border-radius: 8px;
+        background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+      .an-btn:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
+      .an-btn:disabled { opacity: .5; cursor: default; }
+      .an-iconbtn { width: 28px; height: 28px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.16)); border-radius: 8px;
+        background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+      .an-iconbtn:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
+      .an-badge--muted { background: transparent; border: 1px dashed var(--dsw-alias-label-tertiary); color: var(--dsw-alias-label-tertiary); }
       .an-toolbar { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; }
       .an-chart-wrap { position: relative; }
       .an-hover { position: absolute; top: -26px; transform: translateX(-50%); z-index: 3; pointer-events: none;
@@ -801,9 +809,6 @@ window.__ModuleLoader__.load({
       const peak = peakAt(data, now);
       const period = peak === true ? 'peak' : 'off';
       const flip = nextFlip(data, now);
-      const ids = Object.keys(data.models);
-      const shown = ids.slice(0, 2);
-      const label = shown.map((id) => `${data.models[id].short ?? id} ${money(data.models[id].input?.[period])}`).join(' · ');
       const stale = data.error !== undefined && data.error !== null;
       const spendAll = cost === null ? null : cost.all;
       const spendSince = cost === null ? null : (cost.since ?? cost.all);
@@ -843,11 +848,9 @@ window.__ModuleLoader__.load({
         },
           h('span', { className: `dp-dot${stale ? ' dp-dot--stale' : ''}` }),
           peak === true ? h('span', { className: 'dp-strong' }, strings.peakBadge) : null,
-          peak === true ? h('span', { className: 'dp-sep' }, '·') : null,
-          h('span', { className: 'dp-strong' }, label),
-          peak === true && flip !== null ? h('span', { className: 'dp-mute' }, ` · ${clock(flip.at, language)}`) : null,
-          spend !== null ? h('span', { className: 'dp-sep' }, '·') : null,
-          spend !== null ? h('span', { className: 'dp-mute' }, `${strings.session} ${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`) : null,
+          peak === true ? h('span', { className: 'dp-sep' }, '\u00b7') : null,
+          h('span', { className: 'dp-strong' }, `${strings.session} ${spend === null ? '\u2014' : (spend.approximate ? '~' : '') + moneySpend(spend.cost)}`),
+          peak === true && flip !== null ? h('span', { className: 'dp-mute' }, ` \u00b7 ${clock(flip.at, language)}`) : null,
         ),
         show && createPortal !== null
           ? createPortal(h(PriceTooltip, {
@@ -998,6 +1001,7 @@ window.__ModuleLoader__.load({
         notFound: 'Сессия не найдена',
         fork: 'форк',
         subagent: 'сабагент',
+        archive: 'архив',
         inheritedPrefix: 'Унаследовано из',
         openSession: 'Открыть сессию',
         pickDates: 'Выберите даты',
@@ -1040,6 +1044,7 @@ window.__ModuleLoader__.load({
         notFound: 'Session not found',
         fork: 'fork',
         subagent: 'subagent',
+        archive: 'archive',
         inheritedPrefix: 'Inherited from',
         openSession: 'Open session',
         pickDates: 'Pick dates',
@@ -1082,6 +1087,7 @@ window.__ModuleLoader__.load({
         notFound: '会话未找到',
         fork: '分叉',
         subagent: '子代理',
+        archive: '归档',
         inheritedPrefix: '继承自',
         openSession: '打开会话',
         pickDates: '选择日期',
@@ -1224,7 +1230,7 @@ window.__ModuleLoader__.load({
         ));
     }
 
-    function SpendingPage({ uiWorkspace, sessions }) {
+    function SpendingPage({ uiWorkspace, sessions, workspaces }) {
       ensureStyles();
       const [language, setLanguage] = React.useState(uiLanguage);
       const strings = { ...STRINGS[language], ...AN[language] };
@@ -1258,11 +1264,25 @@ window.__ModuleLoader__.load({
             () => null,
           )
         : null;
+      const workspaceStore = workspaces?.list;
+      const workspaceSnapshot = typeof workspaceStore?.getSnapshot === 'function'
+        ? React.useSyncExternalStore(
+            (notify) => {
+              const dispose = workspaceStore.subscribe?.(notify);
+              return typeof dispose === 'function' ? dispose : () => {};
+            },
+            () => workspaceStore.getSnapshot(),
+            () => null,
+          )
+        : null;
+      const archivedIds = React.useMemo(() => new Set(workspaceSnapshot?.archivedSessionIds ?? []), [workspaceSnapshot]);
       const liveIds = React.useMemo(() => new Set(Object.keys(listSnapshot?.byId ?? {})), [listSnapshot]);
-      const isLive = (id) => typeof id === 'string' && liveIds.has(id);
+      const isArchived = (id) => typeof id === 'string' && archivedIds.has(id);
+      const isLive = (id) => typeof id === 'string' && liveIds.has(id) && !archivedIds.has(id);
 
       React.useEffect(() => {
         let alive = true;
+
         loadState()
           .then(() => {
             if (alive) setLanguage(uiLanguage);
@@ -1456,9 +1476,9 @@ window.__ModuleLoader__.load({
             history.length > 0 ? h('button', { type: 'button', className: 'an-back', onClick: goBack }, strings.back) : null,
             crumb.map((part, index) => h('span', { key: part + index, className: index === crumb.length - 1 ? 'an-crumb an-crumb--last' : 'an-crumb' }, part)),
             h('span', { className: 'an-toolbar' },
-              h('button', { type: 'button', className: 'an-tab', onClick: refresh, disabled: busy }, strings.refresh),
+              h('button', { type: 'button', className: 'an-btn', onClick: refresh, disabled: busy }, strings.refresh),
               updatedAt !== null ? h('span', { className: 'an-dim' }, strings.updated + ' ' + anClock(updatedAt)) : null,
-              h('button', { type: 'button', className: 'an-tab', onClick: resetView }, strings.reset),
+              h('button', { type: 'button', className: 'an-iconbtn', title: strings.reset, onClick: resetView }, '\u21ba'),
             ),
           ),
           h('div', { className: 'an-controls' },
@@ -1596,7 +1616,8 @@ window.__ModuleLoader__.load({
                                   ? h('span', { className: 'an-badge' }, strings.subagent)
                                   : row.parent !== null && row.parent !== undefined
                                     ? h('span', { className: 'an-badge' }, strings.fork)
-                                    : null),
+                                    : null,
+                                isArchived(row.id) ? h('span', { className: 'an-badge an-badge--muted' }, strings.archive) : null),
                               h('span', { className: 'an-dim' }, anLocalDay(row.firstAt, zone) + '–' + anLocalDay(row.lastAt, zone)),
                               h('span', { className: 'an-right an-strong' }, anMoney(row.cost)),
                               h('span', { className: 'an-right an-dim' }, String(row.requests)),
@@ -1659,7 +1680,7 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('main', () => ctx.slots.register({
             name: 'main',
             key: 'spending',
-            inject: () => ({ uiWorkspace: ctx.uiWorkspace, sessions: ctx.sessions }),
+            inject: () => ({ uiWorkspace: ctx.uiWorkspace, sessions: ctx.sessions, workspaces: ctx.get?.('workspaces') ?? ctx.workspaces }),
           }, (props) => h(SpendingPage, props)));
         } catch (error) {
           console.warn('dsh-pricing: spending section registration failed', error);
