@@ -65,6 +65,7 @@ window.__ModuleLoader__.load({
         spendNote: 'по фактическим токенам провайдера',
         inheritedLine: 'Унаследовано из «{title}»: {cost} · не входит в сумму',
         inheritedPrefix: 'Унаследовано из',
+        archive: 'архив',
         tokensInput: 'вход',
         tokensCache: 'кэш',
         tokensOutput: 'выход',
@@ -110,6 +111,7 @@ window.__ModuleLoader__.load({
         spendNote: 'from provider-reported tokens',
         inheritedLine: 'Inherited from «{title}»: {cost} · excluded from totals',
         inheritedPrefix: 'Inherited from',
+        archive: 'archive',
         tokensInput: 'input',
         tokensCache: 'cache',
         tokensOutput: 'output',
@@ -155,6 +157,7 @@ window.__ModuleLoader__.load({
         spendNote: '按提供方实际 token 计费',
         inheritedLine: '继承自「{title}」：{cost} · 不计入合计',
         inheritedPrefix: '继承自',
+        archive: '归档',
         tokensInput: '输入',
         tokensCache: '缓存',
         tokensOutput: '输出',
@@ -209,6 +212,8 @@ window.__ModuleLoader__.load({
       .dp-now-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10.5px; line-height: 14px;
         font-weight: 500; color: #2f6bff; background: rgba(47,107,255,.1); }
       .dp-tip-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+      .dp-arch { margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; line-height: 14px;
+        border: 1px dashed var(--dsw-alias-label-tertiary); color: var(--dsw-alias-label-tertiary); }
       .dp-link { border: 0; background: none; padding: 0; font: inherit; color: #2f6bff; cursor: pointer; text-decoration: underline; }
       .dp-link:disabled { color: var(--dsw-alias-label-tertiary); text-decoration: none; cursor: default; }
       .dp-refresh { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11.5px;
@@ -556,7 +561,7 @@ window.__ModuleLoader__.load({
       return body;
     };
 
-    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, reset, resetting, when, onReset, onClearReset, onOpenSession }) {
+    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, inherited, parentTitle, parentLive, parentArchived, reset, resetting, when, onReset, onClearReset, onOpenSession }) {
       const strings = STRINGS[language];
       const spendBlock = (label, spend) => (spend === null || spend.turns === 0
         ? h('div', { className: 'dp-tip-row' },
@@ -642,7 +647,7 @@ window.__ModuleLoader__.load({
         inherited !== null && inherited !== undefined && inherited.requests > 0
           ? h('div', { className: 'dp-tip-row', style: { marginTop: '4px' } },
               h('span', { className: 'dp-tip-dim' }, strings.inheritedPrefix + ' '),
-              inherited.parentExists === true
+              parentLive === true
                 ? h('button', {
                     type: 'button',
                     className: 'dp-link',
@@ -650,6 +655,7 @@ window.__ModuleLoader__.load({
                   }, parentTitle ?? inherited.parent)
                 : h('span', null, parentTitle ?? inherited.parent),
               h('span', { className: 'dp-tip-dim' }, ' (' + moneySpend(inherited.cost) + ')'),
+              parentArchived === true ? h('span', { className: 'dp-arch' }, strings.archive) : null,
             )
           : null,
         reset !== null
@@ -693,7 +699,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function PricingChip({ sessionId, sessions, uiWorkspace }) {
+    function PricingChip({ sessionId, sessions, uiWorkspace, workspaces }) {
       ensureStyles();
       const [data, setData] = React.useState(null);
       const [now, setNow] = React.useState(() => Date.now());
@@ -715,6 +721,22 @@ window.__ModuleLoader__.load({
       }, [sessions, sessionId]);
       const projection = useStore(store);
       const selection = projection?.pending ?? projection?.lastUsed ?? null;
+
+      // Archive state decides whether the inherited parent is a link, a plain
+      // name, or a name with an "archive" badge.
+      const workspaceStore = workspaces?.list;
+      const workspaceSnapshot = typeof workspaceStore?.getSnapshot === 'function'
+        ? React.useSyncExternalStore(
+            (notify) => {
+              const dispose = workspaceStore.subscribe?.(notify);
+              return typeof dispose === 'function' ? dispose : () => {};
+            },
+            () => workspaceStore.getSnapshot(),
+            () => null,
+          )
+        : null;
+      const archivedSessionIds = new Set(workspaceSnapshot?.archivedSessionIds ?? []);
+      const liveSessionIds = new Set(Object.keys(sessions?.list?.getSnapshot?.()?.byId ?? {}));
 
       React.useEffect(() => {
         let alive = true;
@@ -863,6 +885,8 @@ window.__ModuleLoader__.load({
               spendSince,
               inherited: cost === null ? null : (cost.inherited ?? null),
               parentTitle: cost === null ? null : (cost.parentTitle ?? null),
+              parentLive: cost === null || cost.parent === null ? false : (liveSessionIds.has(cost.parent) && !archivedSessionIds.has(cost.parent)),
+              parentArchived: cost === null || cost.parent === null ? false : archivedSessionIds.has(cost.parent),
               onOpenSession: (id) => { try { uiWorkspace?.openSession?.(id); } catch { /* navigation unavailable */ } },
               reset,
               resetting,
@@ -1003,6 +1027,7 @@ window.__ModuleLoader__.load({
         subagent: 'сабагент',
         archive: 'архив',
         inheritedPrefix: 'Унаследовано из',
+
         openSession: 'Открыть сессию',
         pickDates: 'Выберите даты',
         allTime: 'всё время',
@@ -1046,6 +1071,7 @@ window.__ModuleLoader__.load({
         subagent: 'subagent',
         archive: 'archive',
         inheritedPrefix: 'Inherited from',
+
         openSession: 'Open session',
         pickDates: 'Pick dates',
         allTime: 'all time',
@@ -1089,6 +1115,7 @@ window.__ModuleLoader__.load({
         subagent: '子代理',
         archive: '归档',
         inheritedPrefix: '继承自',
+
         openSession: '打开会话',
         pickDates: '选择日期',
         allTime: '全部时间',
@@ -1563,7 +1590,8 @@ window.__ModuleLoader__.load({
                             isLive(detail.parent)
                               ? h('button', { type: 'button', className: 'dp-link', onClick: () => openSession(detail.parent) }, detail.parentTitle ?? detail.parent)
                               : h('span', null, detail.parentTitle ?? detail.parent),
-                            ' (' + anMoney(detail.inherited.cost) + ')')
+                            ' (' + anMoney(detail.inherited.cost) + ')',
+                            isArchived(detail.parent) ? h('span', { className: 'an-badge an-badge--muted' }, strings.archive) : null)
                         : null,
                       isLive(detail.key)
                         ? h('button', { type: 'button', className: 'an-tab', onClick: () => openSession(detail.key) }, strings.openSession)
@@ -1654,7 +1682,7 @@ window.__ModuleLoader__.load({
             order: 500,
             // The slot hands over sessionId and `t`; the sessions service has to
             // come from the plugin scope, so pass it through the entry inject.
-            inject: () => ({ sessions: ctx.sessions, uiWorkspace: ctx.uiWorkspace }),
+            inject: () => ({ sessions: ctx.sessions, uiWorkspace: ctx.uiWorkspace, workspaces: ctx.get?.('workspaces') ?? ctx.workspaces }),
           },
           (props) => h(PricingChip, props),
         ));
