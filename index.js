@@ -451,6 +451,11 @@ export function apply(ctx, config = {}) {
   const buildTimer = setTimeout(() => void analytics.build(), 5_000);
   buildTimer.unref?.();
 
+  // Keeps the analytics index close to the live logs: unchanged files are skipped
+  // by size/mtime, so a refresh is a cheap stat pass.
+  const analyticsTimer = setInterval(() => void analytics.build(), 5 * 60_000);
+  analyticsTimer.unref?.();
+
   const timer = setInterval(() => void refresh(), Math.max(1, refreshHours) * 3_600_000);
   timer.unref?.();
 
