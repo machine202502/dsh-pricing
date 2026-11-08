@@ -28,6 +28,7 @@ const SNAPSHOT_FILE = join(HERE, 'data', 'pricing.json');
 const STATE_DIR = join(process.env.LOCALAPPDATA ?? join(homedir(), '.cache'), 'dsh-pricing');
 const CACHE_FILE = join(STATE_DIR, 'prices.json');
 const SETTINGS_FILE = join(STATE_DIR, 'settings.json');
+const RESETS_FILE = join(STATE_DIR, 'resets.json');
 const LOG_FILE = join(STATE_DIR, 'plugin.log');
 
 /** Language choices offered by the settings form; `auto` follows the app locale. */
@@ -103,7 +104,7 @@ export function parsePricingMarkdown(markdown) {
   const peak = {};
   const sentence = markdown.match(/Peak hours are\s+([^.]+?)\./i);
   if (sentence !== undefined) {
-    const windows = [...sentence[1].matchAll(/(\d{2}:\d{2})\s*[-–]\s*(\d{2}:\d{2})/g)]
+    const windows = [...sentence[1].matchAll(/(\d{2}:\d{2})\s*[-вЂ“]\s*(\d{2}:\d{2})/g)]
       .map((match) => ({ from: match[1], to: match[2] }));
     if (windows.length > 0) {
       peak.windows = windows;
@@ -276,16 +277,69 @@ const costCache = { key: '', value: null };
  * @param modelId - tariff to apply (the session's selected model).
  * @param data - current price snapshot.
  */
-function sessionCost(sessionId, modelId, data) {
+/** The stored reset marker for one Session, if any. */
+function resetOf(sessionId) {
+  const stored = readJson(RESETS_FILE);
+  const entry = stored !== null && typeof stored === 'object' ? stored[sessionId] : undefined;
+  if (entry === undefined || !Number.isFinite(Number(entry.at))) return null;
+  return { at: Number(entry.at), requests: Number(entry.requests ?? 0) };
+}
+
+/** Write or clear one Session's reset marker. */
+function writeReset(sessionId, entry) {
+  const stored = readJson(RESETS_FILE);
+  const resets = stored !== null && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  if (entry === null) delete resets[sessionId];
+  else resets[sessionId] = entry;
+  writeJson(RESETS_FILE, resets);
+}
+
+/** One accumulator of priced provider usage. */
+function emptyTotal() {
+  return { cost: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, turns: 0, peakTurns: 0 };
+}
+
+/** Fold one provider usage record into an accumulator. */
+function addUsage(total, usage, period, prices) {
+  const uncached = Number(usage.uncachedInputTokens ?? usage.inputTokens ?? 0);
+  const cacheRead = Number(usage.cacheReadTokens ?? 0);
+  const cacheWrite = Number(usage.cacheWriteTokens ?? 0);
+  const output = Number(usage.outputTokens ?? 0);
+  total.cost += ((uncached + cacheWrite) / 1e6) * (prices.input?.[period] ?? 0);
+  total.cost += (cacheRead / 1e6) * (prices.cacheHit?.[period] ?? 0);
+  total.cost += (output / 1e6) * (prices.output?.[period] ?? 0);
+  total.uncached += uncached;
+  total.cacheRead += cacheRead;
+  total.cacheWrite += cacheWrite;
+  total.output += output;
+  total.turns += 1;
+  if (period === 'peak') total.peakTurns += 1;
+}
+
+/**
+ * Actual spend for a Session: every provider-reported usage record is priced
+ * with the tariff that was in force at that record's own timestamp, so turns
+ * recorded during peak stay priced at the peak rate.
+ *
+ * Two slices come back: the whole durable log and, when a reset marker exists,
+ * everything recorded at or after it.
+ *
+ * @param sessionId - session whose durable log to read.
+ * @param modelId - tariff to apply (the session's selected model).
+ * @param data - current price snapshot.
+ * @param resetAt - reset marker timestamp in ms, or null.
+ */
+function sessionCost(sessionId, modelId, data, resetAt) {
   const file = findSessionLog(sessionId);
   if (file === null) return null;
   const prices = data.models?.[modelId] ?? data.models?.['deepseek-flash'];
   if (prices === undefined) return null;
   const stat = statSync(file);
-  const key = `${file}|${stat.size}|${stat.mtimeMs}|${modelId}`;
+  const key = `${file}|${stat.size}|${stat.mtimeMs}|${modelId}|${resetAt ?? 0}`;
   if (costCache.key === key) return costCache.value;
 
-  const total = { cost: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, turns: 0, peakTurns: 0 };
+  const all = emptyTotal();
+  const since = emptyTotal();
   for (const line of readSessionLog(file).split('\n')) {
     if (line.length === 0) continue;
     let record;
@@ -298,23 +352,13 @@ function sessionCost(sessionId, modelId, data) {
     if (usage === undefined || usage === null) continue;
     const at = Number(record.time);
     const period = Number.isFinite(at) && peakAt(data.peak, at) ? 'peak' : 'off';
-    const uncached = Number(usage.uncachedInputTokens ?? usage.inputTokens ?? 0);
-    const cacheRead = Number(usage.cacheReadTokens ?? 0);
-    const cacheWrite = Number(usage.cacheWriteTokens ?? 0);
-    const output = Number(usage.outputTokens ?? 0);
-    total.cost += ((uncached + cacheWrite) / 1e6) * (prices.input?.[period] ?? 0);
-    total.cost += (cacheRead / 1e6) * (prices.cacheHit?.[period] ?? 0);
-    total.cost += (output / 1e6) * (prices.output?.[period] ?? 0);
-    total.uncached += uncached;
-    total.cacheRead += cacheRead;
-    total.cacheWrite += cacheWrite;
-    total.output += output;
-    total.turns += 1;
-    if (period === 'peak') total.peakTurns += 1;
+    addUsage(all, usage, period, prices);
+    if (resetAt !== null && Number.isFinite(at) && at >= resetAt) addUsage(since, usage, period, prices);
   }
+  const value = { all, since: resetAt === null ? all : since };
   costCache.key = key;
-  costCache.value = total;
-  return total;
+  costCache.value = value;
+  return value;
 }
 //#endregion
 
@@ -405,14 +449,48 @@ export function apply(ctx, config = {}) {
       return;
     }
     if (path === '/health') return json(200, { ok: true, port });
+    const costPayload = (sessionId, modelId) => {
+      const reset = resetOf(sessionId);
+      const totals = sessionCost(sessionId, modelId, state.data, reset === null ? null : reset.at);
+      return { all: totals?.all ?? null, since: totals?.since ?? null, reset };
+    };
     if (path === '/session-cost' && request.method === 'GET') {
       const sessionId = url.searchParams.get('session') ?? '';
       const modelId = url.searchParams.get('model') ?? 'deepseek-flash';
       try {
-        const cost = sessionCost(sessionId, modelId, state.data);
-        return json(200, { cost });
+        return json(200, costPayload(sessionId, modelId));
       } catch (error) {
         return json(500, { error: String(error?.message ?? error) });
+      }
+    }
+    if (path === '/reset' && request.method === 'POST') {
+      let body = '';
+      for await (const chunk of request) body += chunk;
+      try {
+        const parsed = JSON.parse(body || '{}');
+        const sessionId = String(parsed.session ?? '');
+        const modelId = String(parsed.model ?? 'deepseek-flash');
+        const totals = sessionCost(sessionId, modelId, state.data, null);
+        if (totals === null) return json(404, { error: 'session log not found' });
+        writeReset(sessionId, { at: Date.now(), requests: totals.all.turns });
+        log('session reset: ' + sessionId + ' at request ' + totals.all.turns);
+        return json(200, costPayload(sessionId, modelId));
+      } catch (error) {
+        return json(400, { error: String(error?.message ?? error) });
+      }
+    }
+    if (path === '/reset/clear' && request.method === 'POST') {
+      let body = '';
+      for await (const chunk of request) body += chunk;
+      try {
+        const parsed = JSON.parse(body || '{}');
+        const sessionId = String(parsed.session ?? '');
+        const modelId = String(parsed.model ?? 'deepseek-flash');
+        writeReset(sessionId, null);
+        log('session reset cleared: ' + sessionId);
+        return json(200, costPayload(sessionId, modelId));
+      } catch (error) {
+        return json(400, { error: String(error?.message ?? error) });
       }
     }
     if (path === '/settings' && request.method === 'GET') {

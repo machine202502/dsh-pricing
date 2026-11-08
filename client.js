@@ -64,7 +64,12 @@ window.__ModuleLoader__.load({
         tokensInput: 'вход',
         tokensCache: 'кэш',
         tokensOutput: 'выход',
-        loading: 'Загрузка…',
+        sinceReset: 'С последнего сброса',
+        resetButton: 'Сбросить',
+        clearReset: 'Снять сброс',
+        resetHint: 'Новая точка отсчёта для этого чата: сумма и токены считаются с этого момента',
+        resetAt: 'сброшено {when}',
+        resetFrom: 'с запроса №{count}',
       },
       en: {
         peakTitle: 'Peak pricing',
@@ -100,7 +105,12 @@ window.__ModuleLoader__.load({
         tokensInput: 'input',
         tokensCache: 'cache',
         tokensOutput: 'output',
-        loading: 'Loading…',
+        sinceReset: 'Since the last reset',
+        resetButton: 'Reset',
+        clearReset: 'Clear reset',
+        resetHint: 'A new starting point for this chat: the sum and the tokens count from this moment',
+        resetAt: 'reset {when}',
+        resetFrom: 'from request #{count}',
       },
       zh: {
         peakTitle: '高峰价格',
@@ -136,7 +146,12 @@ window.__ModuleLoader__.load({
         tokensInput: '输入',
         tokensCache: '缓存',
         tokensOutput: '输出',
-        loading: '加载中…',
+        sinceReset: '自上次重置',
+        resetButton: '重置',
+        clearReset: '清除重置',
+        resetHint: '为此会话设定新的起点：金额与 token 从此刻开始计算',
+        resetAt: '重置于 {when}',
+        resetFrom: '从第 {count} 次请求起',
       },
     };
 
@@ -179,6 +194,13 @@ window.__ModuleLoader__.load({
         cursor: pointer; padding: 2px 0; text-decoration: underline; white-space: nowrap; }
       .dp-refresh:hover { color: var(--dsw-alias-label-primary); }
       .dp-refresh:disabled { opacity: .5; cursor: default; }
+      .dp-tip-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+      .dp-reset { height: 26px; padding: 0 12px; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer;
+        border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.16)); background: transparent; color: var(--dsw-alias-label-primary); }
+      .dp-reset:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); }
+      .dp-clear { border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 11.5px;
+        cursor: pointer; padding: 2px 0; text-decoration: underline; }
+      .dp-reset:disabled, .dp-clear:disabled { opacity: .5; cursor: default; }
 
       .dp-set { display: flex; flex-direction: column; gap: 14px; max-width: 520px; padding: 4px 0 8px; font-size: 13px; }
       .dp-set-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
@@ -415,8 +437,23 @@ window.__ModuleLoader__.load({
       return response.json();
     };
 
-    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spend }) {
+    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, reset, resetting, when, onReset, onClearReset }) {
       const strings = STRINGS[language];
+      const spendBlock = (label, spend) => (spend === null || spend.turns === 0
+        ? h('div', { className: 'dp-tip-row' },
+            h('span', null, label),
+            h('span', { className: 'dp-tip-dim' }, '—'),
+          )
+        : h('div', null,
+            h('div', { className: 'dp-tip-row' },
+              h('span', null, label),
+              h('span', { className: 'dp-strong' }, `${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`),
+            ),
+            h('div', { className: 'dp-tip-row' },
+              h('span', { className: 'dp-tip-dim' },
+                `${strings.tokensInput} ${tokens(spend.uncached + spend.cacheWrite)} · ${strings.tokensCache} ${tokens(spend.cacheRead)} · ${strings.tokensOutput} ${tokens(spend.output)}`),
+            ),
+          ));
       const peak = peakAt(data, now);
       const flip = nextFlip(data, now);
       const period = peak === true ? 'peak' : 'off';
@@ -476,21 +513,34 @@ window.__ModuleLoader__.load({
           h('tbody', null, rows),
         ),
         h('div', { className: 'dp-tip-hr' }),
-        spend !== null && spend.turns > 0
-          ? h('div', null,
-              h('div', { className: 'dp-tip-row' },
-                h('span', null, strings.session),
-                h('span', { className: 'dp-strong' }, `${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`),
-              ),
-              h('div', { className: 'dp-tip-row' },
-                h('span', { className: 'dp-tip-dim' },
-                  `${strings.tokensInput} ${tokens(spend.uncached + spend.cacheWrite)} · ${strings.tokensCache} ${tokens(spend.cacheRead)} · ${strings.tokensOutput} ${tokens(spend.output)}`),
-              ),
-              h('div', { className: 'dp-tip-row' },
-                h('span', { className: 'dp-tip-dim' }, strings.spendNote),
-              ),
+        spendBlock(strings.session, spendAll),
+        h('div', { className: 'dp-tip-hr' }),
+        spendBlock(strings.sinceReset, spendSince),
+        reset !== null
+          ? h('div', { className: 'dp-tip-row', style: { marginTop: '4px' } },
+              h('span', { className: 'dp-tip-dim' }, `${fill(strings.resetAt, { when: when })}${reset.requests > 0 ? ` · ${fill(strings.resetFrom, { count: reset.requests })}` : ''}`),
             )
           : null,
+        h('div', { className: 'dp-tip-actions' },
+          h('button', {
+            type: 'button',
+            className: 'dp-reset',
+            title: strings.resetHint,
+            disabled: resetting === true,
+            onClick: (event) => { event.stopPropagation(); onReset(); },
+          }, strings.resetButton),
+          reset !== null
+            ? h('button', {
+                type: 'button',
+                className: 'dp-clear',
+                disabled: resetting === true,
+                onClick: (event) => { event.stopPropagation(); onClearReset(); },
+              }, strings.clearReset)
+            : null,
+        ),
+        h('div', { className: 'dp-tip-row' },
+          h('span', { className: 'dp-tip-dim', style: { fontSize: '11px' } }, strings.resetHint),
+        ),
         h('div', { className: 'dp-tip-hr' }),
         h('div', { className: 'dp-tip-foot' },
           h('span', { className: 'dp-tip-dim' }, `${age(data.updatedAt, now, language, strings)}${data.error ? ` · ${strings.failed}` : ''}`),
@@ -514,7 +564,8 @@ window.__ModuleLoader__.load({
       const [hovered, setHovered] = React.useState(false);
       const [pinned, setPinned] = React.useState(false);
       const [refreshing, setRefreshing] = React.useState(false);
-      const [spendCost, setSpendCost] = React.useState(null);
+      const [cost, setCost] = React.useState(null);
+      const [resetting, setResetting] = React.useState(false);
       const chipRef = React.useRef(null);
       const [placement, setPlacement] = React.useState({ top: 0, left: 0 });
 
@@ -557,7 +608,11 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         if (!pinned) return undefined;
-        const dismiss = () => setPinned(false);
+        const dismiss = (event) => {
+          // Buttons inside the card must not dismiss it before their click runs.
+          if (event.target instanceof Element && event.target.closest('.dp-tip') !== null) return;
+          setPinned(false);
+        };
         document.addEventListener('mousedown', dismiss);
         return () => document.removeEventListener('mousedown', dismiss);
       }, [pinned]);
@@ -574,7 +629,7 @@ window.__ModuleLoader__.load({
             const response = await fetch(`${base}/session-cost?session=${encodeURIComponent(sessionId)}&model=${encodeURIComponent(tariffModel)}`, { cache: 'no-store' });
             if (!response.ok) return;
             const body = await response.json();
-            if (alive) setSpendCost(body.cost ?? null);
+            if (alive && body !== null && body.all !== undefined) setCost(body);
           } catch {
             /* the host half may still be starting */
           }
@@ -622,7 +677,27 @@ window.__ModuleLoader__.load({
       const shown = ids.slice(0, 2);
       const label = shown.map((id) => `${data.models[id].short ?? id} ${money(data.models[id].input?.[period])}`).join(' · ');
       const stale = data.error !== undefined && data.error !== null;
-      const spend = spendCost;
+      const spendAll = cost === null ? null : cost.all;
+      const spendSince = cost === null ? null : (cost.since ?? cost.all);
+      const reset = cost === null ? null : (cost.reset ?? null);
+      const spend = spendSince;
+      const when = reset === null ? '' : new Date(reset.at).toLocaleString(LOCALES[language] ?? 'en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const act = async (route) => {
+        if (selection === null) return;
+        setResetting(true);
+        try {
+          const response = await fetch(`${base}${route}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ session: sessionId, model: CANONICAL[selection.model] ?? selection.model }),
+          });
+          if (response.ok) setCost(await response.json());
+        } catch {
+          /* keep the previous figures */
+        } finally {
+          setResetting(false);
+        }
+      };
 
 
 
@@ -643,8 +718,8 @@ window.__ModuleLoader__.load({
           peak === true ? h('span', { className: 'dp-sep' }, '·') : null,
           h('span', { className: 'dp-strong' }, label),
           peak === true && flip !== null ? h('span', { className: 'dp-mute' }, ` · ${clock(flip.at, language)}`) : null,
-          spend !== null && spend.turns > 0 ? h('span', { className: 'dp-sep' }, '·') : null,
-          spend !== null && spend.turns > 0 ? h('span', { className: 'dp-mute' }, `${strings.session} ${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`) : null,
+          spend !== null ? h('span', { className: 'dp-sep' }, '·') : null,
+          spend !== null ? h('span', { className: 'dp-mute' }, `${strings.session} ${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`) : null,
         ),
         show && createPortal !== null
           ? createPortal(h(PriceTooltip, {
@@ -653,7 +728,13 @@ window.__ModuleLoader__.load({
               placement,
               now,
               refreshing,
-              spend,
+              spendAll,
+              spendSince,
+              reset,
+              resetting,
+              when,
+              onReset: () => act('/reset'),
+              onClearReset: () => act('/reset/clear'),
               onRefresh: async () => {
                 setRefreshing(true);
                 try {

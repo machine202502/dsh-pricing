@@ -1,6 +1,6 @@
 {
   "name": "dsh-pricing",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "type": "module",
   "description": "DeepSeek peak hours, live token prices and the session's actual spend in the session header, for the official provider.",
