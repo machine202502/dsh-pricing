@@ -14,10 +14,11 @@
  */
 
 import { createServer } from 'node:http';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
+import { zstdDecompressSync } from 'node:zlib';
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'dsh-pricing';
@@ -164,14 +165,159 @@ function loadSettings() {
   const language = LANGUAGES.includes(stored?.language) ? stored.language : DEFAULT_SETTINGS.language;
   return { language };
 }
-
-/** Persist the settings and return the stored shape. */
 function saveSettings(input) {
   const language = LANGUAGES.includes(input?.language) ? input.language : DEFAULT_SETTINGS.language;
   const next = { language };
   writeJson(SETTINGS_FILE, next);
   return next;
 }
+
+//#region session spend
+const DAY_INDEX = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+
+/** Wall-clock parts of an instant in one time zone. */
+function zoneParts(zone, ms) {
+  const out = {};
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone ?? 'UTC',
+    hourCycle: 'h23',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  for (const part of formatter.formatToParts(new Date(ms))) out[part.type] = part.value;
+  return {
+    weekday: DAY_INDEX[out.weekday] ?? 1,
+    year: Number(out.year),
+    month: Number(out.month),
+    day: Number(out.day),
+    hour: Number(out.hour) % 24,
+    minute: Number(out.minute),
+    date: `${out.year}-${out.month}-${out.day}`,
+  };
+}
+
+const toMinutes = (hm) => {
+  const [hour, minute] = String(hm).split(':').map(Number);
+  return hour * 60 + minute;
+};
+
+/** Whether the provider's peak schedule covered one instant. */
+function peakAt(peak, ms) {
+  if (peak === undefined || peak === null || !Array.isArray(peak.windows) || peak.windows.length === 0) return false;
+  const parts = zoneParts(peak.tz, ms);
+  const days = Array.isArray(peak.days) && peak.days.length > 0 ? peak.days : [1, 2, 3, 4, 5];
+  if (!days.includes(parts.weekday)) return false;
+  if ((peak.holidays ?? []).includes(parts.date)) return false;
+  const minutes = parts.hour * 60 + parts.minute;
+  return peak.windows.some((window) => {
+    const from = toMinutes(window.from);
+    const to = toMinutes(window.to);
+    return to > from ? minutes >= from && minutes < to : minutes >= from || minutes < to;
+  });
+}
+
+/** Locate the durable session log under the DSH home. */
+function findSessionLog(sessionId) {
+  if (typeof sessionId !== 'string' || !/^session-[0-9a-f-]+$/u.test(sessionId)) return null;
+  const root = join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'sessions');
+  let groups;
+  try {
+    groups = readdirSync(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const group of groups) {
+    if (!group.isDirectory()) continue;
+    const directory = join(root, group.name, sessionId);
+    if (!existsSync(directory)) continue;
+    let files;
+    try {
+      files = readdirSync(directory).filter((name) => /^session\.v\d+\.jsonl\.zstd$/u.test(name));
+    } catch {
+      continue;
+    }
+    if (files.length > 0) return join(directory, files[0]);
+  }
+  return null;
+}
+
+/** Decompress every zstd frame of a session log into one JSONL string. */
+function readSessionLog(file) {
+  const raw = readFileSync(file);
+  const offsets = [];
+  for (let index = 0; index + 4 <= raw.length; index += 1) {
+    if (raw[index] === 0x28 && raw[index + 1] === 0xb5 && raw[index + 2] === 0x2f && raw[index + 3] === 0xfd) offsets.push(index);
+  }
+  let text = '';
+  for (let index = 0; index < offsets.length; index += 1) {
+    const end = index + 1 < offsets.length ? offsets[index + 1] : raw.length;
+    try {
+      text += zstdDecompressSync(raw.subarray(offsets[index], end)).toString('utf8');
+    } catch {
+      /* a torn final frame is fine */
+    }
+  }
+  return text;
+}
+
+/** One cached parse of a session log, keyed by path/size/mtime. */
+const costCache = { key: '', value: null };
+
+/**
+ * Actual spend for a session: every provider-reported usage record is priced
+ * with the tariff that was in force at that record's own timestamp, so turns
+ * recorded during peak stay priced at the peak rate.
+ *
+ * @param sessionId - session whose durable log to read.
+ * @param modelId - tariff to apply (the session's selected model).
+ * @param data - current price snapshot.
+ */
+function sessionCost(sessionId, modelId, data) {
+  const file = findSessionLog(sessionId);
+  if (file === null) return null;
+  const prices = data.models?.[modelId] ?? data.models?.['deepseek-flash'];
+  if (prices === undefined) return null;
+  const stat = statSync(file);
+  const key = `${file}|${stat.size}|${stat.mtimeMs}|${modelId}`;
+  if (costCache.key === key) return costCache.value;
+
+  const total = { cost: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, turns: 0, peakTurns: 0 };
+  for (const line of readSessionLog(file).split('\n')) {
+    if (line.length === 0) continue;
+    let record;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const usage = record?.data?.message?.usage ?? record?.data?.usage;
+    if (usage === undefined || usage === null) continue;
+    const at = Number(record.time);
+    const period = Number.isFinite(at) && peakAt(data.peak, at) ? 'peak' : 'off';
+    const uncached = Number(usage.uncachedInputTokens ?? usage.inputTokens ?? 0);
+    const cacheRead = Number(usage.cacheReadTokens ?? 0);
+    const cacheWrite = Number(usage.cacheWriteTokens ?? 0);
+    const output = Number(usage.outputTokens ?? 0);
+    total.cost += ((uncached + cacheWrite) / 1e6) * (prices.input?.[period] ?? 0);
+    total.cost += (cacheRead / 1e6) * (prices.cacheHit?.[period] ?? 0);
+    total.cost += (output / 1e6) * (prices.output?.[period] ?? 0);
+    total.uncached += uncached;
+    total.cacheRead += cacheRead;
+    total.cacheWrite += cacheWrite;
+    total.output += output;
+    total.turns += 1;
+    if (period === 'peak') total.peakTurns += 1;
+  }
+  costCache.key = key;
+  costCache.value = total;
+  return total;
+}
+//#endregion
+
 
 /**
  * Activate the host half: load the snapshot, start the loopback bridge and
@@ -259,6 +405,16 @@ export function apply(ctx, config = {}) {
       return;
     }
     if (path === '/health') return json(200, { ok: true, port });
+    if (path === '/session-cost' && request.method === 'GET') {
+      const sessionId = url.searchParams.get('session') ?? '';
+      const modelId = url.searchParams.get('model') ?? 'deepseek-flash';
+      try {
+        const cost = sessionCost(sessionId, modelId, state.data);
+        return json(200, { cost });
+      } catch (error) {
+        return json(500, { error: String(error?.message ?? error) });
+      }
+    }
     if (path === '/settings' && request.method === 'GET') {
       return json(200, { values: loadSettings(), defaults: DEFAULT_SETTINGS, options: LANGUAGES });
     }

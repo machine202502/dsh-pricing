@@ -59,6 +59,11 @@ window.__ModuleLoader__.load({
         saved: 'Сохранено',
         saveFailed: 'Не удалось сохранить',
         auto: 'Авто',
+        session: 'сессия',
+        spendNote: 'по фактическим токенам провайдера',
+        tokensInput: 'вход',
+        tokensCache: 'кэш',
+        tokensOutput: 'выход',
         loading: 'Загрузка…',
       },
       en: {
@@ -90,6 +95,11 @@ window.__ModuleLoader__.load({
         saved: 'Saved',
         saveFailed: 'Could not save',
         auto: 'Auto',
+        session: 'session',
+        spendNote: 'from provider-reported tokens',
+        tokensInput: 'input',
+        tokensCache: 'cache',
+        tokensOutput: 'output',
         loading: 'Loading…',
       },
       zh: {
@@ -121,6 +131,11 @@ window.__ModuleLoader__.load({
         saved: '已保存',
         saveFailed: '保存失败',
         auto: '自动',
+        session: '会话',
+        spendNote: '按提供方实际 token 计费',
+        tokensInput: '输入',
+        tokensCache: '缓存',
+        tokensOutput: '输出',
         loading: '加载中…',
       },
     };
@@ -193,6 +208,23 @@ window.__ModuleLoader__.load({
       if (value === 0) return '$0';
       if (value >= 0.1) return `$${String(Number(value.toFixed(2)))}`;
       return `$${String(Number(value.toFixed(4)))}`;
+    };
+
+    /** Money for a session total: more digits while the sum is still tiny. */
+    const moneySpend = (value) => {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+      if (value === 0) return '$0';
+      if (value >= 1) return `$${value.toFixed(2)}`;
+      if (value >= 0.01) return `$${value.toFixed(3)}`;
+      return `$${value.toFixed(4)}`;
+    };
+
+    /** Compact token count: 12.3k, 1.02M. */
+    const tokens = (value) => {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return '0';
+      if (value >= 1e6) return `${String(Number((value / 1e6).toFixed(2)))}M`;
+      if (value >= 1e3) return `${String(Number((value / 1e3).toFixed(1)))}k`;
+      return String(Math.round(value));
     };
 
     /** Wall-clock parts of an instant in one time zone. */
@@ -383,7 +415,7 @@ window.__ModuleLoader__.load({
       return response.json();
     };
 
-    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh }) {
+    function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spend }) {
       const strings = STRINGS[language];
       const peak = peakAt(data, now);
       const flip = nextFlip(data, now);
@@ -444,6 +476,22 @@ window.__ModuleLoader__.load({
           h('tbody', null, rows),
         ),
         h('div', { className: 'dp-tip-hr' }),
+        spend !== null && spend.turns > 0
+          ? h('div', null,
+              h('div', { className: 'dp-tip-row' },
+                h('span', null, strings.session),
+                h('span', { className: 'dp-strong' }, `${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`),
+              ),
+              h('div', { className: 'dp-tip-row' },
+                h('span', { className: 'dp-tip-dim' },
+                  `${strings.tokensInput} ${tokens(spend.uncached + spend.cacheWrite)} · ${strings.tokensCache} ${tokens(spend.cacheRead)} · ${strings.tokensOutput} ${tokens(spend.output)}`),
+              ),
+              h('div', { className: 'dp-tip-row' },
+                h('span', { className: 'dp-tip-dim' }, strings.spendNote),
+              ),
+            )
+          : null,
+        h('div', { className: 'dp-tip-hr' }),
         h('div', { className: 'dp-tip-foot' },
           h('span', { className: 'dp-tip-dim' }, `${age(data.updatedAt, now, language, strings)}${data.error ? ` · ${strings.failed}` : ''}`),
           h('button', {
@@ -466,6 +514,7 @@ window.__ModuleLoader__.load({
       const [hovered, setHovered] = React.useState(false);
       const [pinned, setPinned] = React.useState(false);
       const [refreshing, setRefreshing] = React.useState(false);
+      const [spendCost, setSpendCost] = React.useState(null);
       const chipRef = React.useRef(null);
       const [placement, setPlacement] = React.useState({ top: 0, left: 0 });
 
@@ -513,6 +562,31 @@ window.__ModuleLoader__.load({
         return () => document.removeEventListener('mousedown', dismiss);
       }, [pinned]);
 
+      // Actual session spend comes from the host: it reads the durable session
+      // log, prices each recorded request with the tariff in force at that
+      // request's own time and caches the result per log generation.
+      React.useEffect(() => {
+        if (sessionId === undefined || selection === null) return undefined;
+        const tariffModel = CANONICAL[selection.model] ?? selection.model;
+        let alive = true;
+        const load = async () => {
+          try {
+            const response = await fetch(`${base}/session-cost?session=${encodeURIComponent(sessionId)}&model=${encodeURIComponent(tariffModel)}`, { cache: 'no-store' });
+            if (!response.ok) return;
+            const body = await response.json();
+            if (alive) setSpendCost(body.cost ?? null);
+          } catch {
+            /* the host half may still be starting */
+          }
+        };
+        void load();
+        const id = setInterval(load, 60_000);
+        return () => {
+          alive = false;
+          clearInterval(id);
+        };
+      }, [sessionId, selection]);
+
       const show = hovered || pinned;
       const place = React.useCallback(() => {
         const rect = chipRef.current?.getBoundingClientRect();
@@ -548,6 +622,9 @@ window.__ModuleLoader__.load({
       const shown = ids.slice(0, 2);
       const label = shown.map((id) => `${data.models[id].short ?? id} ${money(data.models[id].input?.[period])}`).join(' · ');
       const stale = data.error !== undefined && data.error !== null;
+      const spend = spendCost;
+
+
 
       return h('span', { className: 'dp-wrap', style: { position: 'relative', display: 'inline-flex' } },
         h('button', {
@@ -566,6 +643,8 @@ window.__ModuleLoader__.load({
           peak === true ? h('span', { className: 'dp-sep' }, '·') : null,
           h('span', { className: 'dp-strong' }, label),
           peak === true && flip !== null ? h('span', { className: 'dp-mute' }, ` · ${clock(flip.at, language)}`) : null,
+          spend !== null && spend.turns > 0 ? h('span', { className: 'dp-sep' }, '·') : null,
+          spend !== null && spend.turns > 0 ? h('span', { className: 'dp-mute' }, `${strings.session} ${spend.approximate ? '~' : ''}${moneySpend(spend.cost)}`) : null,
         ),
         show && createPortal !== null
           ? createPortal(h(PriceTooltip, {
@@ -574,6 +653,7 @@ window.__ModuleLoader__.load({
               placement,
               now,
               refreshing,
+              spend,
               onRefresh: async () => {
                 setRefreshing(true);
                 try {

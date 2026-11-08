@@ -1,9 +1,9 @@
 {
   "name": "dsh-pricing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "type": "module",
-  "description": "DeepSeek peak hours and live token prices in the session header, for the official provider.",
+  "description": "DeepSeek peak hours, live token prices and the session's actual spend in the session header, for the official provider.",
   "license": "MIT",
   "author": "machine202502",
   "repository": {
