@@ -6,16 +6,19 @@
  * and keeps the result in a compact on-disk index. Queries then aggregate the
  * index by day or by hour of day in any IANA time zone.
  *
- * LOCAL ONLY. This package is never published.
+ * Forked Sessions carry a copied prefix of their parent's history. Those copied
+ * usage records were already paid in the parent, so they are aggregated as
+ * `inherited` and never added to the fork's own cost — otherwise a fork would
+ * double the parent's spend on every chart.
  *
  * @module dsh-pricing/analytics
  */
 
-import { existsSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
 
-const INDEX_VERSION = 1;
+const INDEX_VERSION = 2;
 /** Model codes keep the on-disk index small. */
 const MODEL_CODES = ['deepseek-flash', 'deepseek-v4-pro'];
 const DAY_INDEX = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
@@ -33,21 +36,6 @@ const toMinutes = (hm) => {
   const [hour, minute] = String(hm).split(':').map(Number);
   return hour * 60 + minute;
 };
-
-/** Whether the provider's peak schedule covered one instant. */
-function peakAt(peak, ms) {
-  if (peak === undefined || peak === null || !Array.isArray(peak.windows) || peak.windows.length === 0) return false;
-  const parts = zonedParts(ms, peak.tz ?? 'UTC');
-  const days = Array.isArray(peak.days) && peak.days.length > 0 ? peak.days : [1, 2, 3, 4, 5];
-  if (!days.includes(parts.weekday)) return false;
-  if ((peak.holidays ?? []).includes(parts.date)) return false;
-  const minutes = parts.hour * 60 + parts.minute;
-  return peak.windows.some((window) => {
-    const from = toMinutes(window.from);
-    const to = toMinutes(window.to);
-    return to > from ? minutes >= from && minutes < to : minutes >= from || minutes < to;
-  });
-}
 
 /** Wall-clock parts of an instant in one zone, cached per zone+hour. */
 const partsCache = new Map();
@@ -99,8 +87,20 @@ function dayStart(date, zone) {
   return wallInstant(zone, year, month, day, 0, 0);
 }
 
-/** Local date key of an instant. */
-const dateKey = (ms, zone) => zonedParts(ms, zone).date;
+/** Whether the provider's peak schedule covered one instant. */
+function peakAt(peak, ms) {
+  if (peak === undefined || peak === null || !Array.isArray(peak.windows) || peak.windows.length === 0) return false;
+  const parts = zonedParts(ms, peak.tz ?? 'UTC');
+  const days = Array.isArray(peak.days) && peak.days.length > 0 ? peak.days : [1, 2, 3, 4, 5];
+  if (!days.includes(parts.weekday)) return false;
+  if ((peak.holidays ?? []).includes(parts.date)) return false;
+  const minutes = parts.hour * 60 + parts.minute;
+  return peak.windows.some((window) => {
+    const from = toMinutes(window.from);
+    const to = toMinutes(window.to);
+    return to > from ? minutes >= from && minutes < to : minutes >= from || minutes < to;
+  });
+}
 
 /** Decompress every zstd frame of a session log. */
 function readLog(file) {
@@ -121,24 +121,27 @@ function readLog(file) {
   return text;
 }
 
-/** Session titles live in the projection cache the sidebar also reads. */
-function readTitles(stateRoot) {
-  const titles = new Map();
+/** Session titles and inherited-event counts live in the projection cache. */
+function readSessionMeta(stateRoot) {
+  const meta = new Map();
   const directory = join(stateRoot, 'storages', 'session_projcache', 'sessions');
   let files = [];
   try {
     files = readdirSync(directory);
   } catch {
-    return titles;
+    return meta;
   }
   for (const name of files) {
     if (!name.endsWith('.json')) continue;
     const record = readJson(join(directory, name));
     const value = record?.record?.rows?.title?.val;
     const title = typeof value === 'string' ? value : value?.text;
-    if (typeof title === 'string' && title.length > 0) titles.set(name.slice(0, -5), title);
+    meta.set(name.slice(0, -5), {
+      title: typeof title === 'string' && title.length > 0 ? title : undefined,
+      inherited: Number(record?.record?.identity?.inheritedEventCount ?? 0),
+    });
   }
-  return titles;
+  return meta;
 }
 
 /** List every session log under the DSH home. */
@@ -191,20 +194,31 @@ function priceUsage(usage, modelIndex, period, snapshot) {
 /**
  * Parse one session log into compact priced entries.
  *
+ * Records at or below the inherited-event limit are the fork's copied prefix:
+ * they are counted separately so a fork never re-bills the parent's work.
+ *
  * @param file - session log path.
- * @param fallbackModel - model the session last selected, used until a request header appears.
- * @param prices - current price snapshot keyed by model id.
- * @returns entries: [time, cost, uncached, cacheRead, cacheWrite, output, modelCode]
+ * @param fallbackModel - model used until the first request header appears.
+ * @param prices - current price snapshot.
+ * @param peak - peak schedule of that snapshot.
+ * @param inheritedLimit - inherited event count from the projection cache.
+ * @returns entries, the inherited aggregate, and the parent session id.
  */
-function parseEntries(file, fallbackModel, prices, peak) {
+function parseEntries(file, fallbackModel, prices, peak, inheritedLimit) {
   const entries = [];
+  const inherited = { cost: 0, requests: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
   let modelIndex = Math.max(0, MODEL_CODES.indexOf(fallbackModel));
+  let parent = null;
   for (const line of readLog(file).split('\n')) {
     if (line.length === 0) continue;
     let record;
     try {
       record = JSON.parse(line);
     } catch {
+      continue;
+    }
+    if (record.type === 'session') {
+      if (typeof record.parentSession === 'string') parent = record.parentSession;
       continue;
     }
     if (record.type === 'request/header') {
@@ -223,16 +237,25 @@ function parseEntries(file, fallbackModel, prices, peak) {
     if (!Number.isFinite(at)) continue;
     const period = peakAt(peak, at) ? 'peak' : 'off';
     const priced = priceUsage(usage, modelIndex, period, prices);
+    if (Number(record.seq) <= inheritedLimit) {
+      inherited.cost += priced.cost;
+      inherited.requests += 1;
+      inherited.uncached += priced.uncached;
+      inherited.cacheRead += priced.cacheRead;
+      inherited.cacheWrite += priced.cacheWrite;
+      inherited.output += priced.output;
+      continue;
+    }
     entries.push([at, Math.round(priced.cost * 1e6) / 1e6, priced.uncached, priced.cacheRead, priced.cacheWrite, priced.output, modelIndex]);
   }
-  return entries;
+  return { entries, inherited, parent };
 }
 
 /**
  * Create the analytics service for one DSH home.
  *
  * @param options.root - DSH sessions root.
- * @param options.stateRoot - DSH home (for the projection cache and titles).
+ * @param options.stateRoot - DSH home.
  * @param options.stateDir - dsh-pricing state directory for the index file.
  * @param options.getPrices - current price snapshot accessor.
  * @param options.log - diagnostic logger.
@@ -262,10 +285,6 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     sessions = new Map(Object.entries(stored.sessions));
   };
 
-  /** Sessions without a request header are priced at the Flash rate. */
-  const fallbackModelId = 'deepseek-flash';
-
-  /** Yield to the host event loop so a long build never freezes the bridge. */
   const yieldToLoop = () => new Promise((resolve) => setImmediate(resolve));
 
   /** Refresh the index; unchanged logs keep their cached entries. */
@@ -277,11 +296,11 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     try {
       const prices = getPrices();
       const peak = prices.peak;
-      const titles = readTitles(stateRoot);
+      const meta = readSessionMeta(stateRoot);
       const logs = listLogs(root);
       state.total = logs.length;
       state.done = 0;
-      const fallbackModel = fallbackModelId;
+      const fallbackModel = 'deepseek-flash';
       let changed = false;
       for (const item of logs) {
         state.done += 1;
@@ -292,18 +311,23 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         } catch {
           continue;
         }
+        const info = meta.get(item.id) ?? meta.get(item.id.replace(/^session-/u, ''));
+        const title = info?.title ?? sessions.get(item.key)?.title ?? item.id;
+        const inheritedLimit = info?.inherited ?? 0;
         const cached = sessions.get(item.key);
-        const title = titles.get(item.id) ?? titles.get(item.id.replace(/^session-/u, '')) ?? cached?.title ?? item.id;
-        if (cached !== undefined && cached.size === stat.size && cached.mtime === stat.mtimeMs && cached.title === title) continue;
-        let entries = [];
+        if (cached !== undefined
+          && cached.size === stat.size
+          && cached.mtime === stat.mtimeMs
+          && cached.title === title
+          && cached.inheritedLimit === inheritedLimit) continue;
+        let parsed;
         try {
-          entries = parseEntries(item.file, fallbackModel, prices, peak);
+          parsed = parseEntries(item.file, fallbackModel, prices, peak, inheritedLimit);
         } catch (error) {
           log(`analytics parse failed for ${item.key}: ${String(error?.message ?? error)}`);
           continue;
         }
-        const firstAt = entries.length > 0 ? entries[0][0] : null;
-        const lastAt = entries.length > 0 ? entries[entries.length - 1][0] : null;
+        const { entries, inherited, parent } = parsed;
         sessions.set(item.key, {
           file: item.file,
           size: stat.size,
@@ -311,8 +335,11 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
           title,
           project: item.project,
           id: item.id,
-          firstAt,
-          lastAt,
+          firstAt: entries.length > 0 ? entries[0][0] : null,
+          lastAt: entries.length > 0 ? entries[entries.length - 1][0] : null,
+          inheritedLimit,
+          parent,
+          inherited,
           entries,
         });
         changed = true;
@@ -327,7 +354,6 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     }
   };
 
-  /** Empty aggregate accumulator. */
   const bucket = () => ({ cost: 0, requests: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0 });
 
   const add = (target, entry) => {
@@ -339,11 +365,19 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     target.output += entry[5];
   };
 
+  /** Title of a session by id, falling back to the key. */
+  const titleOf = (key) => {
+    for (const [candidate, item] of sessions) {
+      if (candidate === key || item.id === key) return item.title;
+    }
+    return key;
+  };
+
   /**
    * Aggregate the index for one query.
    *
-   * @param query - from/to local dates, zone, optional session key and model id,
-   *   sort, cursor and limit for the session page.
+   * @param query - local dates, zone, optional session/model filter, sort,
+   *   cursor and limit for the session page.
    */
   function query({ from, to, tz, session, model, sort = 'cost', cursor = 0, limit = 50 }) {
     load();
@@ -356,7 +390,6 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     const days = new Map();
     const hours = Array.from({ length: 24 }, () => bucket());
     const rows = [];
-    const peak = getPrices().peak;
 
     for (const [key, item] of sessions) {
       if (session !== undefined && session !== null && session !== '' && key !== session) continue;
@@ -382,6 +415,9 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         project: item.project,
         firstAt: item.firstAt,
         lastAt: item.lastAt,
+        parent: item.parent ?? null,
+        parentTitle: item.parent === null || item.parent === undefined ? null : titleOf(item.parent),
+        inherited: item.inherited ?? null,
         ...row,
       });
     }
@@ -396,7 +432,7 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
         .sort((left, right) => left.date.localeCompare(right.date)),
       hours: hours.map((value, hour) => ({ hour, ...value })),
       sessions: { rows: page, total: rows.length, nextCursor: cursor + page.length < rows.length ? cursor + page.length : null },
-      peak,
+      peak: getPrices().peak,
     };
   }
 
@@ -405,10 +441,6 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
     load();
     const item = sessions.get(key);
     if (item === undefined) return null;
-    return sessionDetailFor(item, tz);
-  }
-
-  function sessionDetailFor(item, tz) {
     const zone = tz || 'UTC';
     const totals = bucket();
     const days = new Map();
@@ -432,6 +464,9 @@ export function createAnalytics({ root, stateRoot, stateDir, getPrices, log }) {
       project: item.project,
       firstAt: item.firstAt,
       lastAt: item.lastAt,
+      parent: item.parent ?? null,
+      parentTitle: item.parent === null || item.parent === undefined ? null : titleOf(item.parent),
+      inherited: item.inherited ?? null,
       totals,
       days: [...days.entries()].map(([date, value]) => ({ date, ...value })).sort((a, b) => a.date.localeCompare(b.date)),
       hours: hours.map((value, hour) => ({ hour, ...value })),

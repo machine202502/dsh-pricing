@@ -258,6 +258,9 @@ window.__ModuleLoader__.load({
       .an-dim { color: var(--dsw-alias-label-tertiary); }
       .an-more { display: flex; justify-content: center; padding: 12px 0; }
       .an-days { margin-top: 12px; }
+      .an-fork { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; line-height: 14px;
+        color: var(--dsw-alias-label-tertiary); background: rgba(0,0,0,.06); vertical-align: 1px; }
+      .an-sub--fork { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
       .an-day-row { display: grid; grid-template-columns: 90px 120px 1fr; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05)); font-variant-numeric: tabular-nums; }
 
       .dp-set { display: flex; flex-direction: column; gap: 14px; max-width: 520px; padding: 4px 0 8px; font-size: 13px; }
@@ -930,6 +933,9 @@ window.__ModuleLoader__.load({
         cache: 'кэш',
         output: 'выход',
         notFound: 'Сессия не найдена',
+        fork: 'форк',
+        inherited: 'Унаследовано из «{title}»',
+        inheritedNote: '{cost} · {requests} запросов · уже оплачено в родительской сессии, в суммы не входит',
       },
       en: {
         title: 'Spending',
@@ -964,6 +970,9 @@ window.__ModuleLoader__.load({
         cache: 'cache',
         output: 'output',
         notFound: 'Session not found',
+        fork: 'fork',
+        inherited: 'Inherited from «{title}»',
+        inheritedNote: '{cost} · {requests} requests · already paid in the parent session, excluded from totals',
       },
       zh: {
         title: '费用',
@@ -998,6 +1007,9 @@ window.__ModuleLoader__.load({
         cache: '缓存',
         output: '输出',
         notFound: '会话未找到',
+        fork: '分叉',
+        inherited: '继承自「{title}」',
+        inheritedNote: '{cost} · {requests} 次请求 · 已在父会话付费，不计入合计',
       },
     };
 
@@ -1239,7 +1251,12 @@ window.__ModuleLoader__.load({
           detailMode && detail !== null
             ? h('div', { className: 'an-sub' },
                 h('strong', null, detail.title),
-                ' · ' + new Date(detail.firstAt).toLocaleDateString(locale) + ' — ' + new Date(detail.lastAt).toLocaleDateString(locale))
+                ' · ' + new Date(detail.firstAt).toLocaleDateString(locale) + ' — ' + new Date(detail.lastAt).toLocaleDateString(locale),
+                detail.inherited === null || detail.inherited === undefined || detail.inherited.requests === 0 ? null
+                  : h('div', { className: 'an-sub an-sub--fork' },
+                      h('span', null, strings.inherited.replace('{title}', detail.parentTitle ?? detail.parent ?? '')),
+                      ' · ' + strings.inheritedNote.replace('{cost}', anMoney(detail.inherited.cost)).replace('{requests}', String(detail.inherited.requests))),
+              )
             : h('div', { className: 'an-controls' },
                 h('div', { className: 'an-presets' }, presetList.map(([value, label]) => h('button', {
                   key: value,
@@ -1320,7 +1337,7 @@ window.__ModuleLoader__.load({
                               className: 'an-table-row',
                               onClick: () => { setFocus(row.key); setDetail(null); },
                             },
-                              h('span', { className: 'an-name' }, row.title || row.id),
+                              h('span', { className: 'an-name' }, row.title || row.id, row.parent === null || row.parent === undefined ? null : h('span', { className: 'an-fork', title: strings.inherited.replace('{title}', row.parentTitle ?? '') }, strings.fork)),
                               h('span', { className: 'an-dim' }, anLocalDay(row.firstAt, zone) + '–' + anLocalDay(row.lastAt, zone)),
                               h('span', { className: 'an-right an-strong' }, anMoney(row.cost)),
                               h('span', { className: 'an-right an-dim' }, String(row.requests)),
