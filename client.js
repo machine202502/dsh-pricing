@@ -214,6 +214,51 @@ window.__ModuleLoader__.load({
       .dp-clear { border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 11.5px;
         cursor: pointer; padding: 2px 0; text-decoration: underline; }
       .dp-reset:disabled, .dp-clear:disabled { opacity: .5; cursor: default; }
+      .an-page { width: 100%; height: 100%; overflow: auto; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1.45; }
+      .an-content { max-width: 1100px; margin: 0 auto; padding: 26px clamp(16px, 4vw, 40px) 48px; box-sizing: border-box; }
+      .an-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+      .an-h1 { font-size: 18px; font-weight: 600; margin: 0; }
+      .an-link { border: 0; background: none; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; padding: 0; }
+      .an-link:hover { color: var(--dsw-alias-label-primary); }
+      .an-sub { margin: 0 0 14px; color: var(--dsw-alias-label-secondary); }
+      .an-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 14px; }
+      .an-presets, .an-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12)); border-radius: 10px; }
+      .an-tab { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px;
+        padding: 5px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+      .an-tab:hover { color: var(--dsw-alias-label-primary); }
+      .an-tab--on { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)); color: var(--dsw-alias-label-primary); font-weight: 500; }
+      .an-custom { display: inline-flex; align-items: center; gap: 6px; color: var(--dsw-alias-label-secondary); }
+      .an-custom input, .an-selects select { height: 28px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.16));
+        border-radius: 8px; background: var(--dsw-alias-bg-base, #fff); color: inherit; font: inherit; font-size: 12px; }
+      .an-selects { display: inline-flex; align-items: center; gap: 14px; margin-left: auto; color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+      .an-selects label { display: inline-flex; align-items: center; gap: 6px; }
+      .an-note { padding: 10px 0; color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+      .an-note--error { color: #c0392b; }
+      .an-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; }
+      .an-card { border: 1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.1)); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+      .an-kpi-label { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+      .an-kpi-value { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+      .an-kpi-sub { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      .an-chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .an-chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding: 6px 0 2px; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08)); }
+      .an-chart { justify-content: flex-start; }
+      .an-bar-cell { flex: 1 1 0; min-width: 4px; max-width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; cursor: pointer; }
+      .an-bar-track { width: 100%; height: 100px; display: flex; align-items: flex-end; }
+      .an-bar { width: 100%; min-height: 1px; background: #2f6bff; opacity: .75; border-radius: 3px 3px 0 0; }
+      .an-bar-cell:hover .an-bar { opacity: 1; }
+      .an-bar-label { font-size: 9.5px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
+      .an-table { margin-top: 12px; }
+      .an-table-head, .an-table-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 100px 80px 90px; align-items: center; gap: 10px; width: 100%; }
+      .an-table-head { padding: 6px 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08)); }
+      .an-table-row { border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 8px 4px; cursor: pointer; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05)); }
+      .an-table-row:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.04)); }
+      .an-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .an-right { text-align: right; font-variant-numeric: tabular-nums; }
+      .an-strong { font-weight: 600; }
+      .an-dim { color: var(--dsw-alias-label-tertiary); }
+      .an-more { display: flex; justify-content: center; padding: 12px 0; }
+      .an-days { margin-top: 12px; }
+      .an-day-row { display: grid; grid-template-columns: 90px 120px 1fr; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05)); font-variant-numeric: tabular-nums; }
 
       .dp-set { display: flex; flex-direction: column; gap: 14px; max-width: 520px; padding: 4px 0 8px; font-size: 13px; }
       .dp-set-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
@@ -444,10 +489,15 @@ window.__ModuleLoader__.load({
       return detectLanguage();
     };
 
+    /** The language stored in the plugin settings; chip and page share it. */
+    let uiLanguage = 'ru';
+
     const loadState = async () => {
       const response = await fetch(`${base}/state`, { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
+      const body = await response.json();
+      uiLanguage = resolveLanguage(body.settings);
+      return body;
     };
 
     function PriceTooltip({ data, language, placement, refreshing, now, onRefresh, spendAll, spendSince, reset, resetting, when, onReset, onClearReset }) {
@@ -844,6 +894,448 @@ window.__ModuleLoader__.load({
       );
     }
 
+    //#region spending analytics
+    /** Page copy: kept beside the chip strings so the same language switch drives both. */
+    const AN = {
+      ru: {
+        title: 'Расходы',
+        all: 'Все сессии',
+        week: 'Неделя',
+        month: 'Месяц',
+        d30: '30 дней',
+        day: 'День',
+        custom: 'Свой диапазон',
+        from: 'С',
+        to: 'По',
+        zone: 'Часовой пояс',
+        model: 'Модель',
+        allModels: 'Все',
+        total: 'Всего',
+        requests: 'Запросов',
+        tokens: 'Токенов',
+        sessions: 'Сессий',
+        byDays: 'По дням',
+        byHours: 'Часы суток',
+        hourly: 'По часам',
+        session: 'Сессия',
+        date: 'Дата',
+        cost: 'Стоимость',
+        back: '← Все сессии',
+        export: 'CSV',
+        more: 'Показать ещё',
+        empty: 'За выбранный период расходов нет',
+        building: 'Считаю индекс журналов…',
+        loading: 'Загрузка…',
+        input: 'вход',
+        cache: 'кэш',
+        output: 'выход',
+        notFound: 'Сессия не найдена',
+      },
+      en: {
+        title: 'Spending',
+        all: 'All sessions',
+        week: 'Week',
+        month: 'Month',
+        d30: '30 days',
+        day: 'Day',
+        custom: 'Custom range',
+        from: 'From',
+        to: 'To',
+        zone: 'Time zone',
+        model: 'Model',
+        allModels: 'All',
+        total: 'Total',
+        requests: 'Requests',
+        tokens: 'Tokens',
+        sessions: 'Sessions',
+        byDays: 'By day',
+        byHours: 'Hour of day',
+        hourly: 'By hour',
+        session: 'Session',
+        date: 'Date',
+        cost: 'Cost',
+        back: '← All sessions',
+        export: 'CSV',
+        more: 'Load more',
+        empty: 'No spending in this period',
+        building: 'Building the session index…',
+        loading: 'Loading…',
+        input: 'input',
+        cache: 'cache',
+        output: 'output',
+        notFound: 'Session not found',
+      },
+      zh: {
+        title: '费用',
+        all: '全部会话',
+        week: '周',
+        month: '月',
+        d30: '30 天',
+        day: '日',
+        custom: '自定义范围',
+        from: '从',
+        to: '到',
+        zone: '时区',
+        model: '模型',
+        allModels: '全部',
+        total: '合计',
+        requests: '请求',
+        tokens: 'Token',
+        sessions: '会话',
+        byDays: '按天',
+        byHours: '小时分布',
+        hourly: '按小时',
+        session: '会话',
+        date: '日期',
+        cost: '费用',
+        back: '← 全部会话',
+        export: 'CSV',
+        more: '加载更多',
+        empty: '该时间段没有费用',
+        building: '正在建立索引…',
+        loading: '加载中…',
+        input: '输入',
+        cache: '缓存',
+        output: '输出',
+        notFound: '会话未找到',
+      },
+    };
+
+    const AN_ZONE = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      } catch {
+        return 'UTC';
+      }
+    })();
+    const AN_ZONES = (() => {
+      try {
+        return typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [AN_ZONE];
+      } catch {
+        return [AN_ZONE];
+      }
+    })();
+
+    /** Shift a local date by whole days. */
+    const anShift = (date, days) => {
+      const parts = String(date).split('-').map(Number);
+      return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days)).toISOString().slice(0, 10);
+    };
+
+    /** The date range a preset means in the chosen zone. */
+    const anRange = (preset, zone, now, custom) => {
+      const parts = tzParts(zone, now);
+      const month = String(parts.month).padStart(2, '0');
+      if (preset === 'day') return { from: parts.date, to: parts.date };
+      if (preset === 'week') {
+        const monday = anShift(parts.date, -(parts.weekday - 1));
+        return { from: monday, to: anShift(monday, 6) };
+      }
+      if (preset === 'month') {
+        const last = new Date(Date.UTC(parts.year, parts.month, 0)).getUTCDate();
+        return { from: parts.year + '-' + month + '-01', to: parts.year + '-' + month + '-' + String(last).padStart(2, '0') };
+      }
+      if (preset === 'd30') return { from: anShift(parts.date, -29), to: parts.date };
+      return custom;
+    };
+
+    /** One call to the host analytics bridge. */
+    const anApi = async (path, params) => {
+      const url = new URL(base + path);
+      for (const [key, value] of Object.entries(params ?? {})) {
+        if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+      }
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.json();
+    };
+
+    const anMoney = (value) => {
+      const amount = Number(value ?? 0);
+      if (amount >= 1) return '$' + amount.toFixed(2);
+      if (amount >= 0.01) return '$' + amount.toFixed(3);
+      return '$' + amount.toFixed(4);
+    };
+    const anDay = (date) => {
+      const parts = String(date).split('-');
+      return parts[2] + '.' + parts[1];
+    };
+    const anCount = (value) => {
+      const amount = Number(value ?? 0);
+      if (amount >= 1e6) return String(Number((amount / 1e6).toFixed(1))) + 'M';
+      if (amount >= 1e3) return String(Number((amount / 1e3).toFixed(1))) + 'k';
+      return String(Math.round(amount));
+    };
+    const anIsoDay = (ms) => (typeof ms === 'number' ? new Date(ms).toISOString().slice(0, 10) : '—');
+    /** Session edge date in the chosen zone. */
+    const anLocalDay = (ms, zone) => (typeof ms === 'number' ? anDay(tzParts(zone, ms).date) : '—');
+
+    /** Sidebar rail icon: three spending columns. */
+    function SpendingIcon({ size }) {
+      return h('svg', {
+        width: size,
+        height: size,
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: 1.8,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        'aria-hidden': true,
+      },
+        h('path', { d: 'M4 20V9M10 20V4M16 20v-6M22 20H2' }));
+    }
+
+    function SpendingCharts({ mode, data, onPickDay }) {
+      if (mode === 'hours') {
+        const max = Math.max(1, ...data.hours.map((item) => item.cost));
+        return h('div', { className: 'an-chart' }, data.hours.map((item) => h('div', {
+          key: item.hour,
+          className: 'an-bar-cell',
+          title: String(item.hour).padStart(2, '0') + ':00 · ' + anMoney(item.cost) + ' · ' + item.requests,
+        },
+          h('div', { className: 'an-bar-track' }, h('div', { className: 'an-bar', style: { height: (item.cost / max) * 100 + '%' } })),
+          h('span', { className: 'an-bar-label' }, item.hour % 3 === 0 ? String(item.hour) : ''),
+        )));
+      }
+      const max = Math.max(1, ...data.days.map((item) => item.cost));
+      return h('div', { className: 'an-chart' }, data.days.map((item) => h('div', {
+        key: item.date,
+        className: 'an-bar-cell',
+        title: anDay(item.date) + ' · ' + anMoney(item.cost) + ' · ' + item.requests,
+        onClick: () => onPickDay(item.date),
+      },
+        h('div', { className: 'an-bar-track' }, h('div', { className: 'an-bar', style: { height: (item.cost / max) * 100 + '%' } })),
+        h('span', { className: 'an-bar-label' }, anDay(item.date)),
+      )));
+    }
+
+    function SpendingPage() {
+      ensureStyles();
+      const [language, setLanguage] = React.useState(uiLanguage);
+      const strings = { ...STRINGS[language], ...AN[language] };
+      const locale = LOCALES[language] ?? 'en-US';
+      const [preset, setPreset] = React.useState('week');
+      const [custom, setCustom] = React.useState({ from: '', to: '' });
+      const [zone, setZone] = React.useState(AN_ZONE);
+      const [model, setModel] = React.useState('');
+      const [mode, setMode] = React.useState('days');
+      const [focus, setFocus] = React.useState(null);
+      const [detail, setDetail] = React.useState(null);
+      const [data, setData] = React.useState(null);
+      const [status, setStatus] = React.useState(null);
+      const [busy, setBusy] = React.useState(true);
+      const [error, setError] = React.useState(null);
+      const [now, setNow] = React.useState(Date.now());
+
+      React.useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 60_000);
+        return () => clearInterval(id);
+      }, []);
+
+
+      React.useEffect(() => {
+        let alive = true;
+        loadState()
+          .then(() => {
+            if (alive) setLanguage(uiLanguage);
+          })
+          .catch(() => {});
+        return () => {
+          alive = false;
+        };
+      }, []);
+      const range = focus !== null ? null : anRange(preset, zone, now, custom);
+      const singleDay = range !== null && range.from === range.to;
+
+      React.useEffect(() => {
+        let alive = true;
+        let timer = null;
+        const load = async () => {
+          try {
+            if (focus !== null) {
+              const body = await anApi('/analytics/session', { key: focus, tz: zone });
+              if (!alive) return;
+              setDetail(body.detail ?? null);
+              setStatus(null);
+              setBusy(false);
+              setError(body.detail === null ? strings.notFound : null);
+              return;
+            }
+            const body = await anApi('/analytics', { from: range.from, to: range.to, tz: zone, model, limit: 50 });
+            if (!alive) return;
+            setStatus(body.status ?? null);
+            if (body.ready === false) {
+              setBusy(true);
+              timer = setTimeout(load, 1500);
+              return;
+            }
+            setData(body);
+            setBusy(false);
+            setError(null);
+          } catch (failure) {
+            if (!alive) return;
+            setBusy(false);
+            setError(String(failure?.message ?? failure));
+          }
+        };
+        setBusy(true);
+        setError(null);
+        void load();
+        return () => {
+          alive = false;
+          if (timer !== null) clearTimeout(timer);
+        };
+      }, [preset, custom.from, custom.to, zone, model, focus, now]);
+
+      const loadMore = async () => {
+        if (data === null || data.sessions.nextCursor === null) return;
+        const body = await anApi('/analytics', {
+          from: range.from,
+          to: range.to,
+          tz: zone,
+          model,
+          cursor: data.sessions.nextCursor,
+          limit: 50,
+        });
+        setData({
+          ...data,
+          sessions: {
+            rows: [...data.sessions.rows, ...body.sessions.rows],
+            total: body.sessions.total,
+            nextCursor: body.sessions.nextCursor,
+          },
+        });
+      };
+
+      const exportCsv = () => {
+        const source = focus !== null ? detail : data;
+        if (source === null) return;
+        const lines = ['date,cost,requests,uncached,cacheRead,cacheWrite,output'];
+        for (const item of source.days) {
+          lines.push([item.date, item.cost.toFixed(6), item.requests, item.uncached, item.cacheRead, item.cacheWrite, item.output].join(','));
+        }
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'spending-' + (range === null ? 'session' : range.from + '_' + range.to) + '.csv';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      };
+
+      const detailMode = focus !== null;
+      const shown = detailMode ? detail : data;
+      const hoursMode = mode === 'hours' || singleDay;
+      const presetList = [['week', strings.week], ['month', strings.month], ['d30', strings.d30], ['day', strings.day], ['custom', strings.custom]];
+
+      return h('div', { className: 'an-page' },
+        h('div', { className: 'an-content' },
+          h('div', { className: 'an-head' },
+            h('h1', { className: 'an-h1' }, strings.title),
+            detailMode && detail !== null
+              ? h('button', { type: 'button', className: 'an-link', onClick: () => { setFocus(null); setDetail(null); } }, strings.back)
+              : null,
+          ),
+          detailMode && detail !== null
+            ? h('div', { className: 'an-sub' },
+                h('strong', null, detail.title),
+                ' · ' + new Date(detail.firstAt).toLocaleDateString(locale) + ' — ' + new Date(detail.lastAt).toLocaleDateString(locale))
+            : h('div', { className: 'an-controls' },
+                h('div', { className: 'an-presets' }, presetList.map(([value, label]) => h('button', {
+                  key: value,
+                  type: 'button',
+                  className: 'an-tab' + (preset === value ? ' an-tab--on' : ''),
+                  onClick: () => { setPreset(value); setFocus(null); },
+                }, label))),
+                preset === 'custom'
+                  ? h('div', { className: 'an-custom' },
+                      h('span', null, strings.from),
+                      h('input', { type: 'date', value: custom.from, onChange: (event) => setCustom({ ...custom, from: event.target.value }) }),
+                      h('span', null, strings.to),
+                      h('input', { type: 'date', value: custom.to, onChange: (event) => setCustom({ ...custom, to: event.target.value }) }))
+                  : null,
+                h('div', { className: 'an-selects' },
+                  h('label', null, strings.zone,
+                    h('select', { value: zone, onChange: (event) => setZone(event.target.value) },
+                      AN_ZONES.map((value) => h('option', { key: value, value }, value)))),
+                  h('label', null, strings.model,
+                    h('select', { value: model, onChange: (event) => setModel(event.target.value) },
+                      h('option', { value: '' }, strings.allModels),
+                      h('option', { value: 'deepseek-flash' }, 'V4.1 Flash'),
+                      h('option', { value: 'deepseek-v4-pro' }, 'V4 Pro'))),
+                ),
+              ),
+          status !== null && status.building
+            ? h('div', { className: 'an-note' }, strings.building + ' ' + status.done + ' / ' + status.total)
+            : null,
+          error !== null ? h('div', { className: 'an-note an-note--error' }, error) : null,
+          shown === null && busy ? h('div', { className: 'an-note' }, strings.loading) : null,
+          shown !== null
+            ? h('div', null,
+                h('div', { className: 'an-kpi' },
+                  h('div', { className: 'an-card' },
+                    h('span', { className: 'an-kpi-label' }, strings.total),
+                    h('span', { className: 'an-kpi-value' }, anMoney(shown.totals.cost))),
+                  h('div', { className: 'an-card' },
+                    h('span', { className: 'an-kpi-label' }, strings.requests),
+                    h('span', { className: 'an-kpi-value' }, String(shown.totals.requests))),
+                  h('div', { className: 'an-card' },
+                    h('span', { className: 'an-kpi-label' }, strings.tokens),
+                    h('span', { className: 'an-kpi-value' }, anCount(shown.totals.cacheRead + shown.totals.uncached + shown.totals.output)),
+                    h('span', { className: 'an-kpi-sub' }, strings.input + ' ' + anCount(shown.totals.uncached) + ' · ' + strings.cache + ' ' + anCount(shown.totals.cacheRead) + ' · ' + strings.output + ' ' + anCount(shown.totals.output))),
+                  h('div', { className: 'an-card' },
+                    h('span', { className: 'an-kpi-label' }, strings.sessions),
+                    h('span', { className: 'an-kpi-value' }, detailMode ? '1' : String(data === null ? 0 : data.sessions.total))),
+                ),
+                h('div', { className: 'an-chart-head' },
+                  h('div', { className: 'an-seg' },
+                    h('button', { type: 'button', className: 'an-tab' + (!hoursMode ? ' an-tab--on' : ''), onClick: () => setMode('days') }, strings.byDays),
+                    h('button', { type: 'button', className: 'an-tab' + (hoursMode ? ' an-tab--on' : ''), onClick: () => setMode('hours') }, singleDay ? strings.hourly : strings.byHours)),
+                  h('button', { type: 'button', className: 'an-tab', onClick: exportCsv }, strings.export),
+                ),
+                shown.totals.requests === 0
+                  ? h('div', { className: 'an-note' }, strings.empty)
+                  : h('div', null,
+                      h(SpendingCharts, {
+                        mode: hoursMode ? 'hours' : 'days',
+                        data: shown,
+                        onPickDay: (date) => { setFocus(null); setCustom({ from: date, to: date }); setPreset('custom'); },
+                      }),
+                      detailMode
+                        ? h('div', { className: 'an-days' }, shown.days.map((item) => h('div', { key: item.date, className: 'an-day-row' },
+                            h('span', null, anDay(item.date)),
+                            h('span', { className: 'an-strong' }, anMoney(item.cost)),
+                            h('span', { className: 'an-dim' }, item.requests + ' · ' + anCount(item.uncached + item.cacheRead + item.output)),
+                          )))
+                        : h('div', { className: 'an-table' },
+                            h('div', { className: 'an-table-head' },
+                              h('span', null, strings.session),
+                              h('span', null, strings.date),
+                              h('span', { className: 'an-right' }, strings.cost),
+                              h('span', { className: 'an-right' }, strings.requests),
+                              h('span', { className: 'an-right' }, strings.tokens)),
+                            data.sessions.rows.map((row) => h('button', {
+                              key: row.key,
+                              type: 'button',
+                              className: 'an-table-row',
+                              onClick: () => { setFocus(row.key); setDetail(null); },
+                            },
+                              h('span', { className: 'an-name' }, row.title || row.id),
+                              h('span', { className: 'an-dim' }, anLocalDay(row.firstAt, zone) + '–' + anLocalDay(row.lastAt, zone)),
+                              h('span', { className: 'an-right an-strong' }, anMoney(row.cost)),
+                              h('span', { className: 'an-right an-dim' }, String(row.requests)),
+                              h('span', { className: 'an-right an-dim' }, anCount(row.uncached + row.cacheRead + row.output)))),
+                            data.sessions.nextCursor !== null
+                              ? h('div', { className: 'an-more' }, h('button', { type: 'button', className: 'an-tab', onClick: loadMore }, strings.more))
+                              : null),
+                    ),
+              )
+            : null,
+        ),
+      );
+    }
+    //#endregion
+
     return {
       inject: ['slots', 'sessions'],
       apply(ctx) {
@@ -867,6 +1359,23 @@ window.__ModuleLoader__.load({
           }, () => h(PricingSettings)));
         } catch (error) {
           console.warn('dsh-pricing: settings form registration failed', error);
+        }
+
+        // Spending analytics: a rail section plus its own page, the same
+        // pattern the browser panel uses.
+        try {
+          ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+            name: 'sidebar.panellist',
+            id: 'spending',
+            order: 41,
+            label: () => AN[uiLanguage].title,
+          }, SpendingIcon));
+          ctx.slots.inject('main', () => ctx.slots.register({
+            name: 'main',
+            key: 'spending',
+          }, () => h(SpendingPage)));
+        } catch (error) {
+          console.warn('dsh-pricing: spending section registration failed', error);
         }
       },
     };

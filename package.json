@@ -1,9 +1,9 @@
 {
   "name": "dsh-pricing",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
   "type": "module",
-  "description": "DeepSeek peak hours, live token prices and the session's actual spend in the session header, for the official provider.",
+  "description": "DeepSeek peak hours, live token prices, session spend and a spending analytics page, for the official provider.",
   "license": "MIT",
   "author": "machine202502",
   "repository": {
@@ -27,6 +27,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "analytics.js",
     "index.js",
     "client.js",
     "cordis.patch.yml",

@@ -19,11 +19,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { zstdDecompressSync } from 'node:zlib';
+import { createAnalytics } from './analytics.js';
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'dsh-pricing';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const DSH_HOME = process.env.DSH_HOME ?? join(homedir(), '.dsh');
 const SNAPSHOT_FILE = join(HERE, 'data', 'pricing.json');
 const STATE_DIR = join(process.env.LOCALAPPDATA ?? join(homedir(), '.cache'), 'dsh-pricing');
 const CACHE_FILE = join(STATE_DIR, 'prices.json');
@@ -224,7 +226,7 @@ function peakAt(peak, ms) {
 /** Locate the durable session log under the DSH home. */
 function findSessionLog(sessionId) {
   if (typeof sessionId !== 'string' || !/^session-[0-9a-f-]+$/u.test(sessionId)) return null;
-  const root = join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'sessions');
+  const root = join(DSH_HOME, 'sessions');
   let groups;
   try {
     groups = readdirSync(root, { withFileTypes: true });
@@ -379,6 +381,14 @@ export function apply(ctx, config = {}) {
     models: Array.isArray(config.models) ? config.models : ['deepseek-flash', 'deepseek-v4-pro'],
   };
 
+  const analytics = createAnalytics({
+    root: join(DSH_HOME, 'sessions'),
+    stateRoot: DSH_HOME,
+    stateDir: STATE_DIR,
+    getPrices: () => state.data,
+    log,
+  });
+
   const { data: initial, fromCache } = loadSnapshot();
   const state = {
     data: initial,
@@ -493,6 +503,40 @@ export function apply(ctx, config = {}) {
         return json(400, { error: String(error?.message ?? error) });
       }
     }
+    if (path === '/analytics/status' && request.method === 'GET') {
+      return json(200, analytics.status());
+    }
+    if (path === '/analytics/build' && request.method === 'POST') {
+      void analytics.build();
+      return json(200, analytics.status());
+    }
+    if (path === '/analytics/session' && request.method === 'GET') {
+      try {
+        const detail = analytics.sessionDetail(url.searchParams.get('key') ?? '', url.searchParams.get('tz') ?? 'UTC');
+        return json(200, { detail });
+      } catch (error) {
+        return json(500, { error: String(error?.message ?? error) });
+      }
+    }
+    if (path === '/analytics' && request.method === 'GET') {
+      try {
+        const status = analytics.status();
+        if (!status.building && status.sessions === 0) void analytics.build();
+        const query = {
+          from: url.searchParams.get('from') ?? undefined,
+          to: url.searchParams.get('to') ?? undefined,
+          tz: url.searchParams.get('tz') ?? undefined,
+          session: url.searchParams.get('session') ?? undefined,
+          model: url.searchParams.get('model') ?? undefined,
+          sort: url.searchParams.get('sort') ?? undefined,
+          cursor: Number(url.searchParams.get('cursor') ?? 0),
+          limit: Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? 50))),
+        };
+        return json(200, { ready: !status.building && status.sessions > 0, status, ...analytics.query(query) });
+      } catch (error) {
+        return json(500, { error: String(error?.message ?? error) });
+      }
+    }
     if (path === '/settings' && request.method === 'GET') {
       return json(200, { values: loadSettings(), defaults: DEFAULT_SETTINGS, options: LANGUAGES });
     }
@@ -513,6 +557,10 @@ export function apply(ctx, config = {}) {
 
   server.on('error', (error) => log(`bridge error: ${String(error?.message ?? error)}`));
   server.listen(port, '127.0.0.1', () => log(`bridge on 127.0.0.1:${port}`));
+
+  // Build the spending index shortly after activation; the page can also ask.
+  const buildTimer = setTimeout(() => void analytics.build(), 5_000);
+  buildTimer.unref?.();
 
   const timer = setInterval(() => void refresh(), Math.max(1, refreshHours) * 3_600_000);
   timer.unref?.();
