@@ -60,6 +60,8 @@ window.__ModuleLoader__.load({
         saveFailed: 'Не удалось сохранить',
         auto: 'Авто',
         session: 'сессия',
+        sessionTitle: 'Сессия',
+        nowTag: 'сейчас',
         spendNote: 'по фактическим токенам провайдера',
         tokensInput: 'вход',
         tokensCache: 'кэш',
@@ -101,6 +103,8 @@ window.__ModuleLoader__.load({
         saveFailed: 'Could not save',
         auto: 'Auto',
         session: 'session',
+        sessionTitle: 'Session',
+        nowTag: 'now',
         spendNote: 'from provider-reported tokens',
         tokensInput: 'input',
         tokensCache: 'cache',
@@ -142,6 +146,8 @@ window.__ModuleLoader__.load({
         saveFailed: '保存失败',
         auto: '自动',
         session: '会话',
+        sessionTitle: '会话',
+        nowTag: '当前',
         spendNote: '按提供方实际 token 计费',
         tokensInput: '输入',
         tokensCache: '缓存',
@@ -187,8 +193,15 @@ window.__ModuleLoader__.load({
       .dp-table th:first-child { text-align: left; }
       .dp-table td { text-align: right; padding: 1px 0; }
       .dp-table td:first-child { text-align: left; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+      /* Red is the price signal (peak), blue is the "you are here" signal. */
+      .dp-row--peak td { color: #e5484d; }
+      .dp-row--peak td:first-child { font-weight: 500; }
+      .dp-row--active { background: rgba(47,107,255,.055); }
       .dp-row--active td { font-weight: 600; }
-      .dp-row--active td:first-child { color: #e5484d; }
+      .dp-row--active td:first-child { color: #2f6bff; }
+      .dp-now-dot { display: inline-block; width: 6px; height: 6px; border-radius: 3px; background: #2f6bff; margin-right: 6px; vertical-align: 1px; }
+      .dp-now-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10.5px; line-height: 14px;
+        font-weight: 500; color: #2f6bff; background: rgba(47,107,255,.1); }
       .dp-tip-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
       .dp-refresh { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11.5px;
         cursor: pointer; padding: 2px 0; text-decoration: underline; white-space: nowrap; }
@@ -472,11 +485,15 @@ window.__ModuleLoader__.load({
       for (const id of ids) {
         const model = data.models[id];
         for (const kind of ['off', 'peak']) {
+          const active = kind === period;
           rows.push(h('tr', {
             key: `${id}-${kind}`,
-            className: kind === period ? 'dp-row--active' : undefined,
+            className: [kind === 'peak' ? 'dp-row--peak' : '', active ? 'dp-row--active' : ''].filter(Boolean).join(' ') || undefined,
           },
-            h('td', null, `${model.short ?? id} · ${kind === 'peak' ? strings.peakRow : strings.offRow}`),
+            h('td', null,
+              active ? h('span', { className: 'dp-now-dot' }) : null,
+              `${model.short ?? id} · ${kind === 'peak' ? strings.peakRow : strings.offRow}`,
+              active ? h('span', { className: 'dp-now-tag' }, strings.nowTag) : null),
             h('td', null, money(model.input?.[kind])),
             h('td', null, money(model.cacheHit?.[kind])),
             h('td', null, money(model.output?.[kind])),
@@ -513,7 +530,7 @@ window.__ModuleLoader__.load({
           h('tbody', null, rows),
         ),
         h('div', { className: 'dp-tip-hr' }),
-        spendBlock(strings.session, spendAll),
+        spendBlock(strings.sessionTitle, spendAll),
         h('div', { className: 'dp-tip-hr' }),
         spendBlock(strings.sinceReset, spendSince),
         reset !== null
