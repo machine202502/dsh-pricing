@@ -1,6 +1,6 @@
 - insert:
     - id: pricing
-      name: 'dsh-pricing'
+      name: '@machine202502/dsh-pricing'
       config:
         bridgePort: 49237
         refreshHours: 6

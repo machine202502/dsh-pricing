@@ -174,8 +174,8 @@ markdown, разбирается без HTML-парсера.
 ## Установка
 
 ```bash
-npx --yes github:machine202502/dsh-pricing
-# или в профиле DSH: npm i github:machine202502/dsh-pricing
+dsh plugin --profile desktop add github:machine202502/dsh-pricing
+# имя бандла: @machine202502/dsh-pricing
 ```
 
 ## Конфиг (`cordis.patch.yml`)

@@ -181,8 +181,8 @@ module, `ledger.js`. Both the header chip (`/session-cost`) and the spending pag
 ## Install
 
 ```bash
-npx --yes github:machine202502/dsh-pricing
-# or in a DSH profile: npm i github:machine202502/dsh-pricing
+dsh plugin --profile desktop add github:machine202502/dsh-pricing
+# bundle name: @machine202502/dsh-pricing
 ```
 
 ## Config (`cordis.patch.yml`)

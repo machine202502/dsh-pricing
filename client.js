@@ -10,7 +10,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-pricing',
+  id: '@machine202502/dsh-pricing',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
