@@ -53,6 +53,7 @@ window.__ModuleLoader__.load({
         refreshing: 'Обновляю…',
         chipPeakTip: 'Сейчас пиковый тариф',
         chipOffTip: 'Вне пика',
+        chipOffTipAt: 'Вне пика · пик в {time}',
         settingsTitle: 'Язык',
         settingsHint: 'Авто — по языку приложения',
         save: 'Сохранить',
@@ -100,6 +101,7 @@ window.__ModuleLoader__.load({
         refreshing: 'Refreshing…',
         chipPeakTip: 'Peak pricing now',
         chipOffTip: 'Off-peak',
+        chipOffTipAt: 'Off-peak · peak at {time}',
         settingsTitle: 'Language',
         settingsHint: 'Auto follows the application language',
         save: 'Save',
@@ -147,6 +149,7 @@ window.__ModuleLoader__.load({
         refreshing: '刷新中…',
         chipPeakTip: '当前为高峰价格',
         chipOffTip: '非高峰',
+        chipOffTipAt: '非高峰 · {time} 开始高峰',
         settingsTitle: '语言',
         settingsHint: '自动跟随应用语言',
         save: '保存',
@@ -488,6 +491,18 @@ window.__ModuleLoader__.load({
     /** Local wall-clock time of an instant, e.g. "09:00". */
     const clock = (ms, language) => new Date(ms).toLocaleTimeString(LOCALES[language] ?? 'en-US', { hour: '2-digit', minute: '2-digit' });
 
+    /**
+     * A clock time that names the day when it is not today, e.g. "06:00" but
+     * "Mon 06:00". A weekend night's next peak is Monday's, and without the day
+     * the chip reads as if the peak starts at an hour that has already passed.
+     */
+    const dayClock = (ms, now, language) => {
+      const text = clock(ms, language);
+      if (new Date(ms).toDateString() === new Date(now).toDateString()) return text;
+      const weekday = new Date(ms).toLocaleDateString(LOCALES[language] ?? 'en-US', { weekday: 'short' });
+      return `${weekday} ${text}`;
+    };
+
     /** "обновлено 5 мин назад". */
     const age = (from, now, language, strings) => {
       if (typeof from !== 'number') return strings.bundled;
@@ -597,9 +612,9 @@ window.__ModuleLoader__.load({
       const status = peak === null
         ? strings.unknown
         : peak
-          ? fill(strings.peakNow, { time: flip ? clock(flip.at, language) : '—', left: flip ? duration(flip.at - now, language) : '—' })
+          ? fill(strings.peakNow, { time: flip ? dayClock(flip.at, now, language) : '—', left: flip ? duration(flip.at - now, language) : '—' })
           : flip
-            ? fill(strings.offNow, { time: clock(flip.at, language), left: duration(flip.at - now, language) })
+            ? fill(strings.offNow, { time: dayClock(flip.at, now, language), left: duration(flip.at - now, language) })
             : strings.offTitle;
 
       const rows = [];
@@ -876,13 +891,17 @@ window.__ModuleLoader__.load({
           onClick: () => { place(); setPinned((value) => !value); },
           onFocus: () => { setHovered(true); place(); },
           onBlur: () => setHovered(false),
-          title: peak === true ? strings.chipPeakTip : strings.chipOffTip,
+          title: peak === true
+            ? strings.chipPeakTip
+            : flip === null
+              ? strings.chipOffTip
+              : fill(strings.chipOffTipAt, { time: dayClock(flip.at, now, language) }),
         },
           h('span', { className: `dp-dot${stale ? ' dp-dot--stale' : ''}` }),
           peak === true ? h('span', { className: 'dp-strong' }, strings.peakBadge) : null,
           peak === true ? h('span', { className: 'dp-sep' }, '\u00b7') : null,
           h('span', { className: 'dp-strong' }, `${strings.session} ${spend === null ? '\u2014' : (spend.approximate ? '~' : '') + moneySpend(spend.cost)}`),
-          peak === true && flip !== null ? h('span', { className: 'dp-mute' }, ` \u00b7 ${clock(flip.at, language)}`) : null,
+          peak === true && flip !== null ? h('span', { className: 'dp-mute' }, ` \u00b7 ${dayClock(flip.at, now, language)}`) : null,
         ),
         show && createPortal !== null
           ? createPortal(h(PriceTooltip, {
