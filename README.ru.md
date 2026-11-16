@@ -187,9 +187,13 @@ dsh plugin --profile desktop add github:machine202502/dsh-pricing
     bridgePort: 49237
     refreshHours: 6
     sourceUrl: 'https://api-docs.deepseek.com/quick_start/pricing.md'
-    officialProviders: [deepseek-account]
+    officialProviders: [deepseek-official, deepseek-account]
     models: [deepseek-flash, deepseek-v4-flash, deepseek-v4-pro]
 ```
+
+`deepseek-official` — маршрут, который поставляет DSH; `deepseek-account` — id,
+которым пользовались более старые сборки для того же официального провайдера.
+Плагин принимает оба, поэтому устаревший конфиг не может спрятать чип.
 
 ## Ограничения
 

@@ -25,6 +25,13 @@ window.__ModuleLoader__.load({
     const base = `http://127.0.0.1:${PORT}`;
     /** Legacy provider ids that the table bills at the Flash rate. */
     const CANONICAL = { 'deepseek-v4-flash': 'deepseek-flash' };
+    /**
+     * Official provider routes across DSH releases. The host ships the guard list
+     * in /state, but an older host may still name only `deepseek-account`; the
+     * chip must not disappear because of a stale config or a not-yet-restarted
+     * host half.
+     */
+    const OFFICIAL_PROVIDERS = new Set(['deepseek-official', 'deepseek-account']);
     const DAY_INDEX = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
     const LANGUAGES = ['ru', 'en', 'zh', 'auto'];
     const LOCALES = { ru: 'ru-RU', en: 'en-US', zh: 'zh-CN' };
@@ -848,7 +855,7 @@ window.__ModuleLoader__.load({
       const guard = data.guard ?? {};
       const officialProviders = guard.officialProviders ?? [];
       const guardedModels = guard.models ?? [];
-      const providerOk = officialProviders.includes(selection.provider);
+      const providerOk = officialProviders.includes(selection.provider) || OFFICIAL_PROVIDERS.has(selection.provider);
       const modelId = CANONICAL[selection.model] ?? selection.model;
       const modelOk = guardedModels.includes(selection.model) && data.models?.[modelId] !== undefined;
       if (!providerOk || !modelOk) return null;

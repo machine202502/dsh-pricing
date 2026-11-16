@@ -37,6 +37,26 @@ const LOG_FILE = join(STATE_DIR, 'plugin.log');
 const LANGUAGES = ['ru', 'en', 'zh', 'auto'];
 const DEFAULT_SETTINGS = { language: 'ru' };
 
+/**
+ * Provider routes that bill at these rates.
+ *
+ * DSH ships the official route as `deepseek-official` (`@deepseek-ai/dsh-base`
+ * creates sessions with it); `deepseek-account` is the id older builds used for
+ * the same account-backed provider. Both are always accepted so a stale bundle
+ * patch or an older DSH cannot hide the chip, and the configured list is added
+ * on top for custom deployments.
+ */
+const OFFICIAL_PROVIDER_IDS = ['deepseek-official', 'deepseek-account'];
+
+/** One live plugin runtime per process, shared across loader re-applies. */
+const RUNTIME_KEY = Symbol.for('dsh-pricing.runtime');
+
+/** The official provider ids a config accepts: the built-in aliases plus its own. */
+export function officialProvidersOf(config = {}) {
+  const configured = Array.isArray(config.officialProviders) ? config.officialProviders : [];
+  return [...new Set([...OFFICIAL_PROVIDER_IDS, ...configured.filter((id) => typeof id === 'string' && id.length > 0)])];
+}
+
 /** Price-row labels the official markdown table uses, mapped to our fields. */
 const ROW_KINDS = [
   [/cache hit/i, 'cacheHit'],
@@ -273,7 +293,7 @@ export function apply(ctx, config = {}) {
   const refreshHours = Number(config.refreshHours ?? 6);
   const sourceUrl = String(config.sourceUrl ?? '');
   const guard = {
-    officialProviders: Array.isArray(config.officialProviders) ? config.officialProviders : ['deepseek-account'],
+    officialProviders: officialProvidersOf(config),
     models: Array.isArray(config.models) ? config.models : ['deepseek-flash', 'deepseek-v4-pro'],
   };
 
@@ -469,26 +489,71 @@ export function apply(ctx, config = {}) {
     return json(404, { error: 'not found' });
   });
 
-  server.on('error', (error) => log(`bridge error: ${String(error?.message ?? error)}`));
-  server.listen(port, '127.0.0.1', () => log(`bridge on 127.0.0.1:${port}`));
+  // The loader can apply this module again without disposing the previous
+  // context (the live HMR path does exactly that). A second listen() then fails
+  // with EADDRINUSE and the stale instance keeps answering /state with old
+  // config — the chip silently never updates. Keep one runtime per process and
+  // let a new apply tear the previous one down before it binds.
+  const runtime = { closed: false, timers: [] };
+  const previous = globalThis[RUNTIME_KEY];
+  if (previous !== undefined && typeof previous.dispose === 'function') {
+    try {
+      previous.dispose();
+    } catch {
+      /* the stale runtime is already gone */
+    }
+  }
+  globalThis[RUNTIME_KEY] = runtime;
+
+  const dispose = () => {
+    if (runtime.closed) return;
+    runtime.closed = true;
+    for (const id of runtime.timers) clearTimeout(id);
+    runtime.timers.length = 0;
+    if (server.listening) {
+      server.close();
+      server.closeAllConnections?.();
+    }
+    if (globalThis[RUNTIME_KEY] === runtime) delete globalThis[RUNTIME_KEY];
+    log('disposed');
+  };
+  runtime.dispose = dispose;
+
+  // A previous instance may still be releasing the socket for a moment; retry
+  // briefly instead of leaving this activation without a bridge.
+  let listenAttempts = 0;
+  const listen = () => {
+    if (runtime.closed) return;
+    server.listen(port, '127.0.0.1', () => log(`bridge on 127.0.0.1:${port}`));
+  };
+  server.on('error', (error) => {
+    if (error?.code === 'EADDRINUSE' && listenAttempts < 40 && !runtime.closed) {
+      listenAttempts += 1;
+      const retry = setTimeout(listen, 250);
+      retry.unref?.();
+      runtime.timers.push(retry);
+      return;
+    }
+    log(`bridge error: ${String(error?.message ?? error)}`);
+  });
+  listen();
 
   // Build the spending index shortly after activation; the page can also ask.
   const buildTimer = setTimeout(() => void analytics.build(), 5_000);
   buildTimer.unref?.();
+  runtime.timers.push(buildTimer);
 
   // Keeps the analytics index close to the live logs: unchanged files are skipped
   // by size/mtime, so a refresh is a cheap stat pass.
   const analyticsTimer = setInterval(() => void analytics.build(), 5 * 60_000);
   analyticsTimer.unref?.();
+  runtime.timers.push(analyticsTimer);
 
   const timer = setInterval(() => void refresh(), Math.max(1, refreshHours) * 3_600_000);
   timer.unref?.();
+  runtime.timers.push(timer);
 
   void refresh();
 
-  ctx.on('dispose', () => {
-    clearInterval(timer);
-    server.close();
-    log('disposed');
-  });
+  ctx.on('dispose', dispose);
 }

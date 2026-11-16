@@ -1,6 +1,6 @@
 {
   "name": "@machine202502/dsh-pricing",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "type": "module",
   "description": "DeepSeek peak hours, live token prices, session spend and a spending analytics page, for the official provider.",
   "license": "MIT",
@@ -18,6 +18,9 @@
   },
   "main": "index.js",
   "icon": "./icon.svg",
+  "scripts": {
+    "test": "node --test"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
