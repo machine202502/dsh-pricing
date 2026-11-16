@@ -5,8 +5,8 @@
         bridgePort: 49237
         refreshHours: 6
         sourceUrl: 'https://api-docs.deepseek.com/quick_start/pricing.md'
-        # `deepseek-official` is the route DSH ships; `deepseek-account` is the
-        # older id for the same account-backed provider. Both are accepted.
+        # `deepseek-official` serves new sessions, `deepseek-account` the
+        # signed-in account. Both are accepted.
         officialProviders:
           - deepseek-official
           - deepseek-account

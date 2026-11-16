@@ -40,11 +40,11 @@ const DEFAULT_SETTINGS = { language: 'ru' };
 /**
  * Provider routes that bill at these rates.
  *
- * DSH ships the official route as `deepseek-official` (`@deepseek-ai/dsh-base`
- * creates sessions with it); `deepseek-account` is the id older builds used for
- * the same account-backed provider. Both are always accepted so a stale bundle
- * patch or an older DSH cannot hide the chip, and the configured list is added
- * on top for custom deployments.
+ * Both are current routes of the same account-backed provider: `deepseek-official`
+ * is the one `@deepseek-ai/dsh-base` ships for new sessions, `deepseek-account`
+ * serves the signed-in account (account tasks, the default model helper). Always
+ * accept both so a stale bundle patch or a not-yet-restarted host cannot hide the
+ * chip, and add the configured list on top for custom deployments.
  */
 const OFFICIAL_PROVIDER_IDS = ['deepseek-official', 'deepseek-account'];
 
@@ -294,7 +294,7 @@ export function apply(ctx, config = {}) {
   const sourceUrl = String(config.sourceUrl ?? '');
   const guard = {
     officialProviders: officialProvidersOf(config),
-    models: Array.isArray(config.models) ? config.models : ['deepseek-flash', 'deepseek-v4-pro'],
+    models: Array.isArray(config.models) ? config.models : ['deepseek-flash', 'deepseek-v4-flash', 'deepseek-v4-pro'],
   };
 
   const analytics = createAnalytics({
@@ -489,11 +489,10 @@ export function apply(ctx, config = {}) {
     return json(404, { error: 'not found' });
   });
 
-  // The loader can apply this module again without disposing the previous
-  // context (the live HMR path does exactly that). A second listen() then fails
-  // with EADDRINUSE and the stale instance keeps answering /state with old
-  // config — the chip silently never updates. Keep one runtime per process and
-  // let a new apply tear the previous one down before it binds.
+  // A re-apply can arrive while the previous instance is still bound: a second
+  // listen() then fails with EADDRINUSE and the stale instance keeps answering
+  // /state with old config — the chip silently never updates. Keep one runtime
+  // per process and let a new apply tear the previous one down before it binds.
   const runtime = { closed: false, timers: [] };
   const previous = globalThis[RUNTIME_KEY];
   if (previous !== undefined && typeof previous.dispose === 'function') {
@@ -524,8 +523,12 @@ export function apply(ctx, config = {}) {
   let listenAttempts = 0;
   const listen = () => {
     if (runtime.closed) return;
-    server.listen(port, '127.0.0.1', () => log(`bridge on 127.0.0.1:${port}`));
+    server.listen(port, '127.0.0.1');
   };
+  // Logged once per activation: a failed bind keeps the `once('listening')`
+  // listeners of the earlier attempts registered, so passing this callback to
+  // every retry would print the success line once per attempt.
+  server.once('listening', () => log(`bridge on 127.0.0.1:${port}`));
   server.on('error', (error) => {
     if (error?.code === 'EADDRINUSE' && listenAttempts < 40 && !runtime.closed) {
       listenAttempts += 1;

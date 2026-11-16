@@ -26,10 +26,10 @@ window.__ModuleLoader__.load({
     /** Legacy provider ids that the table bills at the Flash rate. */
     const CANONICAL = { 'deepseek-v4-flash': 'deepseek-flash' };
     /**
-     * Official provider routes across DSH releases. The host ships the guard list
-     * in /state, but an older host may still name only `deepseek-account`; the
-     * chip must not disappear because of a stale config or a not-yet-restarted
-     * host half.
+     * Both official provider routes: `deepseek-official` for shipped sessions and
+     * `deepseek-account` for the signed-in account. The host ships its guard list
+     * in /state; this set keeps the chip alive while the host half has not been
+     * restarted yet and still names only one of them.
      */
     const OFFICIAL_PROVIDERS = new Set(['deepseek-official', 'deepseek-account']);
     const DAY_INDEX = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };

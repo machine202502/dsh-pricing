@@ -1,7 +1,8 @@
 /**
- * Regression guard for the provider guard: DSH 0.2.2 ships the official route as
- * `deepseek-official`, while the bundle patch historically listed only the older
- * `deepseek-account`. A stale list must not hide the header chip.
+ * Regression guard for the provider guard: DSH ships new sessions on
+ * `deepseek-official`, while the bundle patch listed only `deepseek-account`, the
+ * route that serves the signed-in account. A config naming one of them must not
+ * hide the header chip.
  */
 
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ test('always accepts the route DSH ships', () => {
   ]);
 });
 
-test('accepts the legacy account alias', () => {
+test('accepts the account route', () => {
   assert.ok(officialProvidersOf({}).includes('deepseek-account'));
 });
 

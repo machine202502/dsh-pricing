@@ -198,9 +198,9 @@ dsh plugin --profile desktop add github:machine202502/dsh-pricing
     models: [deepseek-flash, deepseek-v4-flash, deepseek-v4-pro]
 ```
 
-`deepseek-official` is the route DSH ships; `deepseek-account` is the id older
-builds used for the same account-backed provider. The plugin always accepts both,
-so a stale config cannot hide the chip.
+`deepseek-official` is the route DSH ships for new sessions; `deepseek-account`
+serves the signed-in account. Both bill the official rates, so the plugin always
+accepts them, and a config that names only one cannot hide the chip.
 
 ## Limitations
 
