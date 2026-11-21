@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
       createPortal = null;
     }
 
-    const PORT = 49237;
+    const PORT = 38037;
     const base = `http://127.0.0.1:${PORT}`;
     /** Legacy provider ids that the table bills at the Flash rate. */
     const CANONICAL = { 'deepseek-v4-flash': 'deepseek-flash' };

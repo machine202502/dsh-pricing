@@ -2,7 +2,7 @@
     - id: pricing
       name: '@machine202502/dsh-pricing'
       config:
-        bridgePort: 49237
+        bridgePort: 38037
         refreshHours: 6
         sourceUrl: 'https://api-docs.deepseek.com/quick_start/pricing.md'
         # `deepseek-official` serves new sessions, `deepseek-account` the

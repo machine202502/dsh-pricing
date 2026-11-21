@@ -55,7 +55,7 @@ The host half:
 - **validates** the result: all three metrics for both models, `peak ≥ off > 0`.
   An incomplete table is rejected and the previous snapshot stays;
 - caches the last good snapshot in `%LOCALAPPDATA%\dsh-pricing\prices.json`;
-- serves it over loopback `127.0.0.1:49237` (`/state`, `/refresh`, `/settings`,
+- serves it over loopback `127.0.0.1:38037` (`/state`, `/refresh`, `/settings`,
   `/analytics`, `/session-cost`, `/health`);
 - writes diagnostics to `%LOCALAPPDATA%\dsh-pricing\plugin.log`.
 
@@ -191,7 +191,7 @@ dsh plugin --profile desktop add github:machine202502/dsh-pricing
 - id: pricing
   name: 'dsh-pricing'
   config:
-    bridgePort: 49237
+    bridgePort: 38037
     refreshHours: 6
     sourceUrl: 'https://api-docs.deepseek.com/quick_start/pricing.md'
     officialProviders: [deepseek-official, deepseek-account]

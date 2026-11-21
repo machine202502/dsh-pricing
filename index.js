@@ -289,7 +289,7 @@ function sessionCost(sessionId, modelId, data, resetAt) {
  * @param config - `bridgePort`, `refreshHours`, `sourceUrl`, `officialProviders`, `models`.
  */
 export function apply(ctx, config = {}) {
-  const port = Number(config.bridgePort ?? 49237);
+  const port = Number(config.bridgePort ?? 38037);
   const refreshHours = Number(config.refreshHours ?? 6);
   const sourceUrl = String(config.sourceUrl ?? '');
   const guard = {

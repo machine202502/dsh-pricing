@@ -53,7 +53,7 @@ markdown, разбирается без HTML-парсера.
 - **валидирует** результат: все три метрики у обеих моделей, `peak ≥ off > 0`.
   Неполная таблица не применяется, остаётся прошлый снимок;
 - кэширует удачный снимок в `%LOCALAPPDATA%\dsh-pricing\prices.json`;
-- отдаёт данные по loopback `127.0.0.1:49237` (`/state`, `/refresh`, `/settings`,
+- отдаёт данные по loopback `127.0.0.1:38037` (`/state`, `/refresh`, `/settings`,
   `/analytics`, `/session-cost`, `/health`);
 - пишет диагностику в `%LOCALAPPDATA%\dsh-pricing\plugin.log`.
 
@@ -184,7 +184,7 @@ dsh plugin --profile desktop add github:machine202502/dsh-pricing
 - id: pricing
   name: 'dsh-pricing'
   config:
-    bridgePort: 49237
+    bridgePort: 38037
     refreshHours: 6
     sourceUrl: 'https://api-docs.deepseek.com/quick_start/pricing.md'
     officialProviders: [deepseek-official, deepseek-account]
